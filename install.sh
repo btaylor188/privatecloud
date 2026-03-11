@@ -203,7 +203,7 @@ if is_selected qbittorrentvpn; then
         echo "OpenVPN password:"
         read -rs OPENVPN_PASSWORD
         echo
-        echo "Paste your OpenVPN config file contents, then press Ctrl+D on a new line:"
+        echo "Paste your OpenVPN config file contents, then press Ctrl+D on a new line (config must use an IP address, not a hostname):"
         _ovpn_content=$(cat)
         if [[ -z "$_ovpn_content" ]]; then
             echo "Warning: OpenVPN config is empty. You must place a valid config at ${DOCKERPATH}/gluetun/custom.conf before starting gluetun."
