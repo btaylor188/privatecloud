@@ -88,7 +88,7 @@ SELECTED=(0 0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0)
 show_menu() {
     echo ""
     echo "┌──────────────────────────────────────────────────────────────┐"
-    echo "│              Media Server — Select Services                  │"
+    echo "│             Private Cloud — Select Services                  │"
     echo "├──────────────────────────────────────────────────────────────┤"
     local last_group=""
     for i in "${!SERVICES[@]}"; do
