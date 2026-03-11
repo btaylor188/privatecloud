@@ -61,17 +61,17 @@ LABELS=(
     "Uptime Kuma       Uptime monitoring"
     "Speedtest         Network speed test"
     "NZBGet            Usenet downloader"
-    "qBittorrent+VPN   Torrent client (any VPN provider)"
+    "qBittorrent+VPN   Torrent client"
     "Prowlarr          Indexer manager"
     "Sonarr            TV show automation"
     "Radarr            Movie automation"
     "Tdarr             Media transcoding"
     "Plex              Media server"
     "Seerr             Media requests"
-    "Nextcloud         File storage (needs DB creds)"
-    "oCIS              ownCloud Infinite Scale (URL)"
-    "Immich            Photo & video backup (needs DB creds)"
-    "Seafile           File sync & share (needs DB creds)"
+    "Nextcloud         File storage"
+    "oCIS              ownCloud Infinite Scale"
+    "Immich            Photo & video backup"
+    "Seafile           File sync & share"
 )
 
 SVC_GROUPS=(
