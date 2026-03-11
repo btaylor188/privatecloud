@@ -1,0 +1,546 @@
+networks:
+  internal:
+    external: true
+  external:
+    external: true
+
+services:
+
+  # ── Infrastructure ────────────────────────────────────────────────
+
+  portainer-ce:
+    container_name: portainer
+    profiles: [portainer]
+    ports:
+      - 9000:9000
+    privileged: false
+    entrypoint:
+      - /portainer
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKERPATH}/portainer/data:/data
+    networks:
+      - internal
+    restart: always
+    image: portainer/portainer-ce
+    labels:
+      - wud.watch=true
+
+  wud:
+    container_name: wud
+    profiles: [wud]
+    image: getwud/wud
+    ports:
+      - 3000:3000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKERPATH}/wud:/store
+    networks:
+      - internal
+    restart: unless-stopped
+    environment:
+      - WUD_WATCHER_LOCAL_CRON=0 0 * * *
+
+  netdata:
+    container_name: netdata
+    profiles: [netdata]
+    ports:
+      - 19999:19999
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal
+    restart: always
+    image: netdata/netdata
+    labels:
+      - wud.watch=true
+
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: duckdns
+    profiles: [duckdns]
+    networks:
+      - external
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - SUBDOMAINS=${DOMAINNAME}
+      - TOKEN=${DUCKDNSTOKEN}
+      - LOG_FILE=false
+    volumes:
+      - ${DOCKERPATH}/duckdns:/config
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    profiles: [cloudflared]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    networks:
+      - external
+    labels:
+      - wud.watch=true
+
+  uptime-kuma:
+    container_name: uptime-kuma
+    profiles: [uptime-kuma]
+    image: louislam/uptime-kuma:1
+    restart: always
+    ports:
+      - 3001:3001
+    networks:
+      - internal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKERPATH}/uptime-kuma:/app/data
+    labels:
+      - wud.watch=true
+
+  speedtest:
+    container_name: speedtest
+    profiles: [speedtest]
+    ports:
+      - 8223:8223
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TITLE=${DOMAINNAME}
+      - WEBPORT=8223
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal
+    restart: always
+    image: adolfintel/speedtest
+    labels:
+      - wud.watch=true
+
+  # ── Downloaders ───────────────────────────────────────────────────
+
+  nzbget:
+    container_name: nzbget
+    profiles: [nzbget]
+    ports:
+      - 6789:6789
+    environment:
+      - LC_ALL=C
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - HOME=/root
+      - TERM=xterm
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ${DOCKERPATH}/nzbget:/config
+      - ${PROCESSPATH}:/mnt/processing
+      - ${MEDIAPATH}:/mnt/Media
+      - /tmp:/tmp
+    networks:
+      - internal
+    restart: always
+    image: linuxserver/nzbget:latest
+    labels:
+      - wud.watch=true
+
+  gluetun:
+    container_name: gluetun
+    profiles: [qbittorrentvpn]
+    image: qmcgaw/gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - 8080:8080
+    volumes:
+      - ${DOCKERPATH}/gluetun:/gluetun
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=${GLUETUN_VPN_TYPE}
+      - OPENVPN_CUSTOM_CONFIG=/gluetun/custom.conf
+      - OPENVPN_USER=${OPENVPN_USER:-}
+      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD:-}
+      - FIREWALL_INPUT_PORTS=8080
+    networks:
+      - internal
+    restart: unless-stopped
+
+  qbittorrent:
+    container_name: qbittorrent
+    profiles: [qbittorrentvpn]
+    image: lscr.io/linuxserver/qbittorrent:latest
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8080
+    volumes:
+      - ${DOCKERPATH}/qbittorrent:/config
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+
+  # ── *ARR! ─────────────────────────────────────────────────────────
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    profiles: [prowlarr]
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/prowlarr:/config
+    ports:
+      - 9696:9696
+    networks:
+      - internal
+    restart: always
+    labels:
+      - wud.watch=true
+
+  sonarr:
+    container_name: sonarr
+    profiles: [sonarr]
+    ports:
+      - 8989:8989
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - HOME=/root
+      - TERM=xterm
+      - XDG_CONFIG_HOME=/config/xdg
+      - LANGUAGE=en_US.UTF-8
+      - LANG=en_US.UTF-8
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ${DOCKERPATH}/sonarr:/config
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
+    networks:
+      - internal
+    restart: always
+    image: linuxserver/sonarr:latest
+    labels:
+      - wud.watch=true
+
+  radarr:
+    container_name: radarr
+    profiles: [radarr]
+    ports:
+      - 7878:7878
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - HOME=/root
+      - TERM=xterm
+      - XDG_CONFIG_HOME=/config/xdg
+      - LANGUAGE=en_US.UTF-8
+      - LANG=en_US.UTF-8
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ${DOCKERPATH}/radarr:/config
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
+    networks:
+      - internal
+    restart: always
+    image: linuxserver/radarr:latest
+    labels:
+      - wud.watch=true
+
+  tdarr:
+    container_name: tdarr_server
+    profiles: [tdarr]
+    volumes:
+      - ${DOCKERPATH}/tdarr/server:/app/server
+      - ${DOCKERPATH}/tdarr/configs:/app/configs
+      - ${DOCKERPATH}/tdarr/logs:/app/logs
+      - ${MEDIAPATH}:/media
+      - ${PROCESSPATH}:/temp
+    environment:
+      - serverIP=0.0.0.0
+      - serverPort=8266
+      - webUIPort=8265
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    ports:
+      - 8265:8265
+      - 8266:8266
+    networks:
+      - internal
+    restart: always
+    image: haveagitgat/tdarr
+    labels:
+      - wud.watch=true
+
+  tdarr_node:
+    container_name: tdarr_node
+    profiles: [tdarr]
+    volumes:
+      - ${DOCKERPATH}/tdarr/configs:/app/configs
+      - ${DOCKERPATH}/tdarr/logs:/app/logs
+      - ${MEDIAPATH}:/media
+      - ${PROCESSPATH}:/temp
+    network_mode: service:tdarr
+    environment:
+      - nodeID=Node01
+      - serverIP=0.0.0.0
+      - serverPort=8266
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    devices:
+      - /dev/dri:/dev/dri
+    restart: always
+    image: haveagitgat/tdarr_node
+    labels:
+      - wud.watch=true
+
+  # ── Media Server ──────────────────────────────────────────────────
+
+  pms-docker:
+    container_name: plex
+    profiles: [plex]
+    devices:
+      - /dev/dri:/dev/dri
+    ports:
+      - 32400:32400/tcp
+      - 3005:3005/tcp
+      - 8324:8324/tcp
+      - 32469:32469/tcp
+      - 1900:1900/udp
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp
+    environment:
+      - TZ=${TZ}
+      - PLEX_CLAIM=${PLEXCLAIM}
+    networks:
+      - internal
+      - external
+    volumes:
+      - ${DOCKERPATH}/plex/database:/config
+      - /dev/shm:/transcode
+      - ${MEDIAPATH}:/mnt/Media
+    restart: always
+    image: plexinc/pms-docker
+    labels:
+      - wud.watch=true
+
+  seerr:
+    container_name: seerr
+    profiles: [seerr]
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - 5055:5055
+    volumes:
+      - ${DOCKERPATH}/seerr/config:/app/config
+    networks:
+      - internal
+    restart: unless-stopped
+    image: ghcr.io/seerr-team/seerr:latest
+    labels:
+      - wud.watch=true
+
+  # ── Private Cloud ─────────────────────────────────────────────────
+
+  nextcloud:
+    image: nextcloud
+    container_name: nextcloud
+    profiles: [nextcloud]
+    restart: always
+    ports:
+      - 8087:80
+    depends_on:
+      - nextcloud-db
+    volumes:
+      - ${DOCKERPATH}/nextcloud/html:/var/www/html
+      - ${DOCKERPATH}/nextcloud/data:/var/www/html/data
+    environment:
+      - MYSQL_PASSWORD=${NCDBUSER}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_HOST=nextcloud-db
+    networks:
+      - internal
+    labels:
+      - wud.watch=true
+
+  nextcloud-db:
+    image: mariadb:10.6
+    container_name: nextcloud-db
+    profiles: [nextcloud]
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    volumes:
+      - ${DOCKERPATH}/nextcloud/db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${NCDBROOT}
+      - MYSQL_PASSWORD=${NCDBUSER}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+    networks:
+      - internal
+    labels:
+      - wud.watch=true
+
+  ocis:
+    image: owncloud/ocis:latest
+    container_name: ocis
+    profiles: [ocis]
+    restart: always
+    ports:
+      - 9200:9200
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        ocis init --insecure true || true
+        ocis server
+    environment:
+      - OCIS_URL=${OCIS_URL}
+      - OCIS_INSECURE=true
+      - OCIS_LOG_LEVEL=info
+    volumes:
+      - ${DOCKERPATH}/ocis/config:/etc/ocis
+      - ${DOCKERPATH}/ocis/data:/var/lib/ocis
+    networks:
+      - internal
+    logging:
+      driver: local
+    labels:
+      - wud.watch=true
+
+  immich-server:
+    container_name: immich_server
+    profiles: [immich]
+    image: ghcr.io/immich-app/immich-server:release
+    ports:
+      - 2283:2283
+    environment:
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=immich
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+    volumes:
+      - ${IMMICH_UPLOAD_LOCATION}:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - immich-redis
+      - immich-postgres
+    networks:
+      - internal
+    restart: always
+    labels:
+      - wud.watch=true
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    profiles: [immich]
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    volumes:
+      - ${DOCKERPATH}/immich/model-cache:/cache
+    environment:
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=immich
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+    networks:
+      - internal
+    restart: always
+    labels:
+      - wud.watch=true
+
+  immich-redis:
+    container_name: immich_redis
+    profiles: [immich]
+    image: docker.io/redis:6.2-alpine
+    networks:
+      - internal
+    restart: always
+
+  immich-postgres:
+    container_name: immich_postgres
+    profiles: [immich]
+    image: docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0
+    environment:
+      - POSTGRES_PASSWORD=${IMMICH_DB_PASSWORD}
+      - POSTGRES_USER=immich
+      - POSTGRES_DB=immich
+    volumes:
+      - ${DOCKERPATH}/immich/postgres:/var/lib/postgresql/data
+    networks:
+      - internal
+    restart: always
+
+  seafile:
+    container_name: seafile
+    profiles: [seafile]
+    image: seafileltd/seafile-mc:latest
+    ports:
+      - 8090:80
+    volumes:
+      - ${DOCKERPATH}/seafile/data:/shared
+    environment:
+      - DB_HOST=seafile-db
+      - DB_ROOT_PASSWD=${SEAFILE_DB_ROOT_PASSWORD}
+      - SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL}
+      - SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD}
+      - SEAFILE_SERVER_HOSTNAME=${SEAFILE_HOSTNAME}
+      - SEAFILE_SERVER_LETSENCRYPT=false
+      - TIME_ZONE=${TZ}
+    depends_on:
+      - seafile-db
+      - seafile-memcached
+    networks:
+      - internal
+    restart: always
+    labels:
+      - wud.watch=true
+
+  seafile-db:
+    container_name: seafile-db
+    profiles: [seafile]
+    image: mariadb:10.11
+    environment:
+      - MYSQL_ROOT_PASSWORD=${SEAFILE_DB_ROOT_PASSWORD}
+      - MYSQL_LOG_CONSOLE=true
+    volumes:
+      - ${DOCKERPATH}/seafile/db:/var/lib/mysql
+    networks:
+      - internal
+    restart: always
+
+  seafile-memcached:
+    container_name: seafile-memcached
+    profiles: [seafile]
+    image: memcached:1.6-alpine
+    entrypoint: memcached -m 256
+    networks:
+      - internal
+    restart: always
