@@ -51,7 +51,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(portainer wud netdata duckdns uptime-kuma cloudflared speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile)
+SERVICES=(portainer wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile)
 
 LABELS=(
     "Portainer         Docker management UI"
@@ -59,7 +59,6 @@ LABELS=(
     "Netdata           System monitoring"
     "DuckDNS           Dynamic DNS"
     "Uptime Kuma       Uptime monitoring"
-    "Cloudflared       Cloudflare Tunnel (needs token)"
     "Speedtest         Network speed test"
     "NZBGet            Usenet downloader"
     "qBittorrent+VPN   Torrent client (any VPN provider)"
@@ -76,15 +75,16 @@ LABELS=(
 )
 
 SVC_GROUPS=(
-    "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
+    "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
     "Downloaders" "Downloaders"
     "*ARR!" "*ARR!" "*ARR!" "*ARR!"
     "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
 )
 
-# Default: all selected except Cloudflared, Nextcloud, oCIS, Immich, and Seafile
-SELECTED=(1 1 0 0 0 1 0  1 0  1 1 1 0  1 0  0 0 0 0)
+# Default: all selected except Nextcloud, oCIS, Immich, and Seafile
+# Cloudflared is always required — not listed here
+SELECTED=(1 1 0 0 0 0  1 0  1 1 1 0  1 0  0 0 0 0)
 
 show_menu() {
     echo ""
@@ -216,7 +216,10 @@ if is_selected qbittorrentvpn; then
     fi
 fi
 
-if is_selected cloudflared; then
+# Cloudflared is always required — reuse token from running container if present
+CF_TUNNEL_TOKEN=$(sudo docker inspect cloudflared --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+    | grep '^TUNNEL_TOKEN=' | cut -d= -f2- || true)
+if [[ -z "$CF_TUNNEL_TOKEN" ]]; then
     echo "Cloudflare Tunnel connection token:"
     read -rs CF_TUNNEL_TOKEN
     echo
@@ -1000,11 +1003,11 @@ fi
 # ─────────────────────────────────────────────
 #  Deploy selected services
 # ─────────────────────────────────────────────
-ALL_ARGS=$(profile_args portainer wud netdata duckdns uptime-kuma cloudflared speedtest \
+ALL_ARGS="--profile cloudflared $(profile_args portainer wud netdata duckdns uptime-kuma speedtest \
                         nzbget qbittorrentvpn \
                         prowlarr sonarr radarr tdarr \
                         plex seerr \
-                        nextcloud ocis immich seafile)
+                        nextcloud ocis immich seafile)"
 
 [[ -n "$ALL_ARGS" ]] && sudo docker compose -f "$SCRIPT_DIR/docker-compose.yaml" $ALL_ARGS up -d
 
@@ -1046,7 +1049,7 @@ is_selected ocis         && print_url "oCIS"           "${OCIS_URL}"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
 is_selected duckdns      && print_url "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
-is_selected cloudflared  && print_url "Cloudflared"    "(no UI — tunnel active)"
+print_url "Cloudflared"    "(no UI — tunnel active)"
 
 echo "└──────────────────────────────────────────────────────────────┘"
 echo ""
