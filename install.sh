@@ -28,7 +28,7 @@ ask() {
 
 make_dir() {
     sudo mkdir -p "$1"
-    sudo chown "${PUID}:${PGID}" "$1"
+    sudo chown "${PUID}:${PGID}" "$(dirname "$1")" "$1"
 }
 
 save_config() {
@@ -269,8 +269,8 @@ fi
 cat > "$SCRIPT_DIR/.env" <<EOF
 DOMAINNAME=${DOMAINNAME}
 DOCKERPATH=${DOCKERPATH}
-PROCESSPATH=${PROCESSPATH}
-MEDIAPATH=${MEDIAPATH}
+PROCESSPATH=${PROCESSPATH:-/opt/processing}
+MEDIAPATH=${MEDIAPATH:-/mnt/media}
 PLEXCLAIM=${PLEXCLAIM:-}
 QBIT_SUBNET=${QBIT_SUBNET:-}
 DUCKDNSTOKEN=${DUCKDNSTOKEN:-}
