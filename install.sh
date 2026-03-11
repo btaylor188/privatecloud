@@ -51,10 +51,9 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(portainer wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile)
 
 LABELS=(
-    "Portainer         Docker management UI"
     "WUD               Container update notifications"
     "Netdata           System monitoring"
     "DuckDNS           Dynamic DNS"
@@ -75,15 +74,15 @@ LABELS=(
 )
 
 SVC_GROUPS=(
-    "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
+    "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
     "Downloaders" "Downloaders"
     "*ARR!" "*ARR!" "*ARR!" "*ARR!"
     "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
 )
 
-# Default: none selected — Cloudflared is always required and not listed here
-SELECTED=(0 0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0)
+# Default: none selected — Cloudflared and Portainer are always required and not listed here
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0)
 
 show_menu() {
     echo ""
@@ -1002,7 +1001,11 @@ fi
 # ─────────────────────────────────────────────
 #  Deploy selected services
 # ─────────────────────────────────────────────
-ALL_ARGS="--profile cloudflared $(profile_args portainer wud netdata duckdns uptime-kuma speedtest \
+# Only add portainer profile if the container doesn't already exist
+_portainer_arg=""
+sudo docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q '^portainer$' || _portainer_arg="--profile portainer"
+
+ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckdns uptime-kuma speedtest \
                         nzbget qbittorrentvpn \
                         prowlarr sonarr radarr tdarr \
                         plex seerr \
@@ -1024,7 +1027,7 @@ print_url() {
     printf "│  %-20s %s\n" "$label" "$url"
 }
 
-is_selected portainer    && print_url "Portainer"      "http://${LOCAL_IP}:9000"
+print_url "Portainer"      "http://${LOCAL_IP}:9000"
 is_selected wud          && print_url "WUD"            "http://${LOCAL_IP}:3000"
 is_selected netdata      && print_url "Netdata"        "http://${LOCAL_IP}:19999"
 is_selected uptime-kuma  && print_url "Uptime Kuma"    "http://${LOCAL_IP}:3001"
