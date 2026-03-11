@@ -1,4 +1,4 @@
-# MediaServer3
+# Private Cloud
 
 A modular, menu-driven Docker media server installer. Select only the services you need — the script handles credentials, networking, and deployment automatically.
 
