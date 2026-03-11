@@ -118,6 +118,30 @@ Self-hosted Google Photos alternative. Deploys four containers: `immich-server`,
 ### Seafile
 Self-hosted Dropbox alternative. Deploys three containers: `seafile`, `seafile-db` (MariaDB), and `seafile-memcached`. The server hostname is used to generate download links — set it to your domain or server IP.
 
+#### Post-install: HTTPS configuration
+If Seafile is served over HTTPS (e.g. behind a Cloudflare Tunnel), two config files need to be updated after the first run. They live at `${DOCKERPATH}/seafile/data/seafile/conf/`.
+
+**`seahub_settings.py`** — change `http` to `https` on the SERVICE_URL and FILE_SERVER_ROOT lines, and add the CSRF line if it isn't there:
+
+```python
+SERVICE_URL = 'https://subdomain.yourdomain.com'
+FILE_SERVER_ROOT = 'https://subdomain.yourdomain.com/seafhttp'
+CSRF_TRUSTED_ORIGINS = ['https://subdomain.yourdomain.com']
+```
+
+**`ccnet.conf`** — add or update `SERVICE_URL` in the `[General]` section:
+
+```ini
+[General]
+SERVICE_URL = https://subdomain.yourdomain.com
+```
+
+After saving both files, restart the container:
+
+```bash
+docker restart seafile
+```
+
 ### Saved Config
 Paths and domain name are saved to `~/.mediaserver3` after each run. Type `c` in the service menu to clear it and start fresh.
 
