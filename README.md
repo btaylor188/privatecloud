@@ -50,13 +50,13 @@ chmod +x install.sh
 ### Infrastructure
 | # | Service | Port | Notes |
 |---|---------|------|-------|
+| — | Cloudflared | — | **Always installed.** Cloudflare Tunnel; requires connection token |
 | 1 | Portainer | 9000 | Docker management UI |
 | 2 | WUD | 3000 | Container update notifications |
 | 3 | Netdata | 19999 | System monitoring |
 | 4 | DuckDNS | — | Dynamic DNS; requires token |
 | 5 | Uptime Kuma | 3001 | Uptime monitoring |
-| 6 | Cloudflared | — | Cloudflare Tunnel; requires connection token |
-| 7 | Speedtest | 8223 | Self-hosted network speed test |
+| 6 | Speedtest | 8223 | Self-hosted network speed test |
 
 ### Downloaders
 | # | Service | Port | Notes |
@@ -90,13 +90,7 @@ chmod +x install.sh
 
 ## Default Selections
 
-On/off by default:
-
-| On | Off |
-|----|-----|
-| Portainer, WUD, Cloudflared | Netdata, DuckDNS, Uptime Kuma, Speedtest |
-| NZBGet, Prowlarr, Sonarr, Radarr | qBittorrent+VPN |
-| Plex | Tdarr, Seerr, Nextcloud, oCIS |
+All services start unchecked — select only what you need. Cloudflared is always installed and does not appear in the menu.
 
 ---
 
