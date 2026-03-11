@@ -82,9 +82,8 @@ SVC_GROUPS=(
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
 )
 
-# Default: all selected except Nextcloud, oCIS, Immich, and Seafile
-# Cloudflared is always required — not listed here
-SELECTED=(1 1 0 0 0 0  1 0  1 1 1 0  1 0  0 0 0 0)
+# Default: none selected — Cloudflared is always required and not listed here
+SELECTED=(0 0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0)
 
 show_menu() {
     echo ""
