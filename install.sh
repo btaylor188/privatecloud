@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ─────────────────────────────────────────────
 #  Saved config (paths and domain name)
 # ─────────────────────────────────────────────
-CONFIG_FILE="${HOME}/.mediaserver3"
+CONFIG_FILE="${HOME}/.privatecloud"
 [[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
 
 # Prompt with a saved/default value — press Enter to accept, or type to override

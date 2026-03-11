@@ -15,8 +15,8 @@ A modular, menu-driven Docker media server installer. Select only the services y
 ## Quick Start
 
 ```bash
-git clone https://github.com/btaylor188/MediaServer3.git
-cd MediaServer3
+git clone https://github.com/btaylor188/privatecloud.git
+cd privatecloud
 chmod +x install.sh
 ./install.sh
 ```
@@ -27,7 +27,7 @@ chmod +x install.sh
 
 1. **Service selection menu** — toggle individual services on/off, then type `go` to proceed
 2. **Credential prompts** — only asks for what the selected services actually need
-3. **Saved config** — paths and domain name are remembered in `~/.mediaserver3` for future runs; press Enter to accept saved values or type to override
+3. **Saved config** — paths and domain name are remembered in `~/.privatecloud` for future runs; press Enter to accept saved values or type to override
 4. **Deployment** — writes `.env` files, installs Docker, creates networks, and starts containers
 5. **Summary** — prints URLs and default credentials for every installed service
 
@@ -143,7 +143,7 @@ docker restart seafile
 ```
 
 ### Saved Config
-Paths and domain name are saved to `~/.mediaserver3` after each run. Type `c` in the service menu to clear it and start fresh.
+Paths and domain name are saved to `~/.privatecloud` after each run. Type `c` in the service menu to clear it and start fresh.
 
 ### Networks
 Two Docker bridge networks are created automatically:
@@ -158,7 +158,7 @@ Two Docker bridge networks are created automatically:
 ## Project Structure
 
 ```
-mediaserver3/
+privatecloud/
 ├── install.sh               # Main installer
 ├── docker.sh                # Docker engine installer
 └── docker-compose.yaml      # All services (profile-gated)
