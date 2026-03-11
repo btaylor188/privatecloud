@@ -394,7 +394,7 @@ fi
 #  Write per-service compose files
 # ─────────────────────────────────────────────
 if is_selected wud; then
-    mkdir -p "${DOCKERPATH}/wud"
+    make_dir "${DOCKERPATH}/wud"
     cat > "${DOCKERPATH}/wud/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -418,7 +418,7 @@ EOF
 fi
 
 if is_selected netdata; then
-    mkdir -p "${DOCKERPATH}/netdata"
+    make_dir "${DOCKERPATH}/netdata"
     cat > "${DOCKERPATH}/netdata/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -441,7 +441,7 @@ EOF
 fi
 
 if is_selected duckdns; then
-    mkdir -p "${DOCKERPATH}/duckdns"
+    make_dir "${DOCKERPATH}/duckdns"
     cat > "${DOCKERPATH}/duckdns/docker-compose.yaml" <<EOF
 networks:
   external:
@@ -467,7 +467,7 @@ EOF
 fi
 
 if is_selected uptime-kuma; then
-    mkdir -p "${DOCKERPATH}/uptime-kuma"
+    make_dir "${DOCKERPATH}/uptime-kuma"
     cat > "${DOCKERPATH}/uptime-kuma/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -489,7 +489,7 @@ EOF
 fi
 
 if is_selected speedtest; then
-    mkdir -p "${DOCKERPATH}/speedtest"
+    make_dir "${DOCKERPATH}/speedtest"
     cat > "${DOCKERPATH}/speedtest/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -515,7 +515,7 @@ EOF
 fi
 
 if is_selected nzbget; then
-    mkdir -p "${DOCKERPATH}/nzbget"
+    make_dir "${DOCKERPATH}/nzbget"
     cat > "${DOCKERPATH}/nzbget/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -546,7 +546,7 @@ EOF
 fi
 
 if is_selected qbittorrentvpn; then
-    mkdir -p "${DOCKERPATH}/qbittorrent"
+    make_dir "${DOCKERPATH}/qbittorrent"
     cat > "${DOCKERPATH}/qbittorrent/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -596,7 +596,7 @@ EOF
 fi
 
 if is_selected prowlarr; then
-    mkdir -p "${DOCKERPATH}/prowlarr"
+    make_dir "${DOCKERPATH}/prowlarr"
     cat > "${DOCKERPATH}/prowlarr/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -621,7 +621,7 @@ EOF
 fi
 
 if is_selected sonarr; then
-    mkdir -p "${DOCKERPATH}/sonarr"
+    make_dir "${DOCKERPATH}/sonarr"
     cat > "${DOCKERPATH}/sonarr/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -653,7 +653,7 @@ EOF
 fi
 
 if is_selected radarr; then
-    mkdir -p "${DOCKERPATH}/radarr"
+    make_dir "${DOCKERPATH}/radarr"
     cat > "${DOCKERPATH}/radarr/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -685,7 +685,7 @@ EOF
 fi
 
 if is_selected tdarr; then
-    mkdir -p "${DOCKERPATH}/tdarr"
+    make_dir "${DOCKERPATH}/tdarr"
     cat > "${DOCKERPATH}/tdarr/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -738,7 +738,7 @@ EOF
 fi
 
 if is_selected plex; then
-    mkdir -p "${DOCKERPATH}/plex"
+    make_dir "${DOCKERPATH}/plex"
     cat > "${DOCKERPATH}/plex/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -777,7 +777,7 @@ EOF
 fi
 
 if is_selected seerr; then
-    mkdir -p "${DOCKERPATH}/seerr"
+    make_dir "${DOCKERPATH}/seerr"
     cat > "${DOCKERPATH}/seerr/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -802,7 +802,7 @@ EOF
 fi
 
 if is_selected nextcloud; then
-    mkdir -p "${DOCKERPATH}/nextcloud"
+    make_dir "${DOCKERPATH}/nextcloud"
     cat > "${DOCKERPATH}/nextcloud/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -846,7 +846,7 @@ EOF
 fi
 
 if is_selected ocis; then
-    mkdir -p "${DOCKERPATH}/ocis"
+    make_dir "${DOCKERPATH}/ocis"
     cat > "${DOCKERPATH}/ocis/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -880,7 +880,7 @@ EOF
 fi
 
 if is_selected immich; then
-    mkdir -p "${DOCKERPATH}/immich"
+    make_dir "${DOCKERPATH}/immich"
     cat > "${DOCKERPATH}/immich/docker-compose.yaml" <<EOF
 networks:
   internal:
@@ -946,7 +946,7 @@ EOF
 fi
 
 if is_selected seafile; then
-    mkdir -p "${DOCKERPATH}/seafile"
+    make_dir "${DOCKERPATH}/seafile"
     cat > "${DOCKERPATH}/seafile/docker-compose.yaml" <<EOF
 networks:
   internal:
