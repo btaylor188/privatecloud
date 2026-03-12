@@ -1076,7 +1076,7 @@ EOF
     done
 
     echo "Hook scripts installed at ${DOCKERPATH}/backup/"
-    echo "In Backrest, set hooks to: /hooks/pre-<group>.sh and /hooks/post-<group>.sh"
+    echo "In Backrest, set hooks to: ${DOCKERPATH}/backup/pre-<group>.sh and ${DOCKERPATH}/backup/post-<group>.sh"
 fi
 
 if is_selected backrest; then
@@ -1102,7 +1102,7 @@ services:
       - ${DOCKERPATH}/backrest/config:/config
       - ${DOCKERPATH}/backrest/cache:/cache
       - ${DOCKERPATH}/backrest/tmp:/tmp
-      - ${DOCKERPATH}/backup:/hooks:ro
+      - ${DOCKERPATH}:${DOCKERPATH}:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
     environment:

@@ -124,12 +124,12 @@ Installed to `${DOCKERPATH}/backup/` and mounted into the Backrest container at 
 
 | Script | Purpose |
 |--------|---------|
-| `/hooks/pre-cloud.sh` | Dump DBs, stop Cloud containers |
-| `/hooks/post-cloud.sh` | Restart Cloud containers in dependency order |
-| `/hooks/pre-arr.sh` | Stop ARR containers |
-| `/hooks/post-arr.sh` | Restart ARR containers |
-| `/hooks/pre-media.sh` | Stop Media containers |
-| `/hooks/post-media.sh` | Restart Media containers |
+| `${DOCKERPATH}/backup/pre-cloud.sh` | Dump DBs, stop Cloud containers |
+| `${DOCKERPATH}/backup/post-cloud.sh` | Restart Cloud containers in dependency order |
+| `${DOCKERPATH}/backup/pre-arr.sh` | Stop ARR containers |
+| `${DOCKERPATH}/backup/post-arr.sh` | Restart ARR containers |
+| `${DOCKERPATH}/backup/pre-media.sh` | Stop Media containers |
+| `${DOCKERPATH}/backup/post-media.sh` | Restart Media containers |
 
 DB dumps are written to `${DOCKERPATH}/backup/dumps/` — include this path in your Backrest cloud plan's source paths so dumps are captured in the snapshot.
 
@@ -141,8 +141,8 @@ DB dumps are written to `${DOCKERPATH}/backup/dumps/` — include this path in y
 2. Add a repo (B2, local path, or both) with your credentials and restic password
 3. Create a plan for each group, set source paths and schedule
 4. Add hook commands:
-   - **Before backup:** `/hooks/pre-<group>.sh`
-   - **After backup:** `/hooks/post-<group>.sh`
+   - **Before backup:** `${DOCKERPATH}/backup/pre-<group>.sh`
+   - **After backup:** `${DOCKERPATH}/backup/post-<group>.sh`
 
 For the Cloud plan, include `${DOCKERPATH}/backup/dumps` as a source path.
 

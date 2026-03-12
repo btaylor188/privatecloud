@@ -557,7 +557,7 @@ services:
       - ${DOCKERPATH}/backrest/config:/config
       - ${DOCKERPATH}/backrest/cache:/cache
       - ${DOCKERPATH}/backrest/tmp:/tmp
-      - ${DOCKERPATH}/backup:/hooks:ro
+      - ${DOCKERPATH}:${DOCKERPATH}:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
     environment:
