@@ -1154,6 +1154,7 @@ EOF
     # Install cron jobs in root crontab (idempotent — removes old entries first)
     TMPCRON=$(mktemp)
     sudo crontab -l 2>/dev/null | grep -Ev 'backup-(cloud|arr|media)\.sh' > "$TMPCRON" || true
+    echo >> "$TMPCRON"  # ensure trailing newline before appending
     [[ -n "${BACKUP_CRON_CLOUD}" ]] && echo "${BACKUP_CRON_CLOUD} ${DOCKERPATH}/backup/backup-cloud.sh" >> "$TMPCRON"
     [[ -n "${BACKUP_CRON_ARR}" ]]   && echo "${BACKUP_CRON_ARR}   ${DOCKERPATH}/backup/backup-arr.sh"   >> "$TMPCRON"
     [[ -n "${BACKUP_CRON_MEDIA}" ]] && echo "${BACKUP_CRON_MEDIA} ${DOCKERPATH}/backup/backup-media.sh" >> "$TMPCRON"
