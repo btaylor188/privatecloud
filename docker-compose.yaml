@@ -506,6 +506,7 @@ services:
       - 8090:80
     volumes:
       - ${DOCKERPATH}/seafile/data:/shared
+      - ${SEAFILE_STORAGE_PATH}:/shared/seafile/seafile-data
     environment:
       - DB_HOST=seafile-db
       - DB_ROOT_PASSWD=${SEAFILE_DB_ROOT_PASSWORD}

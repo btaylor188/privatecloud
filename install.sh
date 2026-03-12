@@ -253,8 +253,10 @@ fi
 if is_selected seafile; then
     echo "Seafile server hostname (e.g. files.yourdomain.com or your server IP):"
     read -r SEAFILE_HOSTNAME
+    ask "Path for Seafile bulk storage" SEAFILE_STORAGE_PATH "${DOCKERPATH}/seafile/storage"
     make_dir "${DOCKERPATH}/seafile/data"
     make_dir "${DOCKERPATH}/seafile/db"
+    make_dir "${SEAFILE_STORAGE_PATH}"
     echo "Seafile DB root password:"
     read -rs SEAFILE_DB_ROOT_PASSWORD
     echo
@@ -286,6 +288,7 @@ NCDBUSER=${NCDBUSER:-}
 IMMICH_UPLOAD_LOCATION=${IMMICH_UPLOAD_LOCATION:-/opt/docker/immich/upload}
 IMMICH_DB_PASSWORD=${IMMICH_DB_PASSWORD:-}
 SEAFILE_HOSTNAME=${SEAFILE_HOSTNAME:-}
+SEAFILE_STORAGE_PATH=${SEAFILE_STORAGE_PATH:-${DOCKERPATH}/seafile/storage}
 SEAFILE_DB_ROOT_PASSWORD=${SEAFILE_DB_ROOT_PASSWORD:-}
 SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL:-}
 SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD:-}
@@ -962,6 +965,7 @@ services:
       - 8090:80
     volumes:
       - ${DOCKERPATH}/seafile/data:/shared
+      - ${SEAFILE_STORAGE_PATH}:/shared/seafile/seafile-data
     environment:
       - DB_HOST=seafile-db
       - DB_ROOT_PASSWD=${SEAFILE_DB_ROOT_PASSWORD}
