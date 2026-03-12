@@ -52,7 +52,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile vaultwarden backrest backup)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile vaultwarden backup)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -73,8 +73,7 @@ LABELS=(
     "Immich            Photo & video backup"
     "Seafile           File sync & share"
     "Vaultwarden       Password manager"
-    "Backrest          Restic snapshot browser (port 9898)"
-    "Backup            Container stop/start hooks for Backrest"
+    "Backup            Backrest UI + restic + container hooks (port 9898)"
 )
 
 SVC_GROUPS=(
@@ -83,12 +82,11 @@ SVC_GROUPS=(
     "*ARR!" "*ARR!" "*ARR!" "*ARR!"
     "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
-    "Infrastructure"
     "Backup"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0 0  0 0)
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0 0  0)
 
 show_menu() {
     echo ""
@@ -1050,8 +1048,9 @@ ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckd
                         nzbget qbittorrentvpn \
                         prowlarr sonarr radarr tdarr \
                         plex seerr \
-                        nextcloud ocis immich seafile vaultwarden \
-                        backrest)"
+                        nextcloud ocis immich seafile vaultwarden)"
+# Backup includes the backrest Docker service
+is_selected backup && ALL_ARGS="$ALL_ARGS --profile backrest"
 
 [[ -n "$ALL_ARGS" ]] && sudo docker compose -f "$SCRIPT_DIR/docker-compose.yaml" $ALL_ARGS up -d
 
@@ -1075,11 +1074,21 @@ EOF
         sudo chmod +x "${DOCKERPATH}/backup/${script}"
     done
 
+    # Install restic on the host for CLI access
+    if ! command -v restic &>/dev/null; then
+        echo "Installing restic..."
+        sudo apt-get install -y restic 2>/dev/null || \
+        sudo snap install restic 2>/dev/null || \
+        { _restic_url=$(curl -fsSL https://api.github.com/repos/restic/restic/releases/latest \
+            | grep -o '"browser_download_url": *"[^"]*linux_amd64\.bz2"' \
+            | grep -o 'https://[^"]*') && \
+          curl -fsSL "$_restic_url" | bunzip2 | sudo tee /usr/local/bin/restic > /dev/null && \
+          sudo chmod +x /usr/local/bin/restic; }
+    fi
+
     echo "Hook scripts installed at ${DOCKERPATH}/backup/"
     echo "In Backrest, set hooks to: ${DOCKERPATH}/backup/pre-<group>.sh and ${DOCKERPATH}/backup/post-<group>.sh"
-fi
 
-if is_selected backrest; then
     make_dir "${DOCKERPATH}/backrest/data"
     make_dir "${DOCKERPATH}/backrest/config"
     make_dir "${DOCKERPATH}/backrest/cache"
@@ -1157,9 +1166,9 @@ is_selected ocis         && print_url "oCIS"           "${OCIS_URL}"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
 is_selected vaultwarden  && print_url "Vaultwarden"    "http://${LOCAL_IP}:8222"
-is_selected backrest     && print_url "Backrest"        "http://${LOCAL_IP}:9898  (add B2 repos via web UI)"
 is_selected duckdns      && print_url "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
-is_selected backup       && print_url "Backup"         "scripts: ${DOCKERPATH}/backup/  logs: ${BACKUPPATH}/logs/"
+is_selected backup       && print_url "Backrest"       "http://${LOCAL_IP}:9898"
+is_selected backup       && print_url "Backup hooks"   "${DOCKERPATH}/backup/"
 print_url "Cloudflared"    "(no UI — tunnel active)"
 
 echo "└──────────────────────────────────────────────────────────────┘"

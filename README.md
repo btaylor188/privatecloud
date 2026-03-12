@@ -90,8 +90,7 @@ chmod +x install.sh
 ### Backup
 | # | Service | Notes |
 |---|---------|-------|
-| 20 | Backrest | Restic web UI — repos, scheduling, retention, snapshots, restores (port 9898) |
-| 21 | Backup | Installs container stop/start hook scripts called by Backrest |
+| 20 | Backup | Backrest web UI (port 9898) + restic CLI + container hook scripts |
 
 ---
 
