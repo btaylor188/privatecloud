@@ -1,16 +1,18 @@
 #!/bin/bash
-# Backrest pre-backup hook — Cloud group
+# Backrest pre-backup hook — cloudservices group
 # Dumps databases and stops containers before snapshot
+
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/backup.conf"
 
-DUMP_DIR="${DOCKERPATH}/cloud/backup/dumps"
+DUMP_DIR="${DOCKERPATH}/cloudservices/backup/dumps"
 mkdir -p "$DUMP_DIR"
 
 is_running() { docker ps -q --filter "name=^${1}$" | grep -q .; }
 
-echo "=== pre-cloud: dumping databases ==="
+echo "=== pre-cloudservices: dumping databases ==="
 
 if is_running immich_postgres; then
     echo "Dumping Immich database"
@@ -29,7 +31,7 @@ if is_running nextcloud-db; then
         > "${DUMP_DIR}/nextcloud_db_$(date +%Y%m%d_%H%M%S).sql"
 fi
 
-echo "=== pre-cloud: stopping containers ==="
+echo "=== pre-cloudservices: stopping containers ==="
 
 for c in immich_server immich_machine_learning immich_redis immich_postgres \
           seafile seafile-memcached seafile-db \
@@ -38,4 +40,4 @@ for c in immich_server immich_machine_learning immich_redis immich_postgres \
     is_running "$c" && echo "Stopping $c" && docker stop "$c"
 done
 
-echo "=== pre-cloud: done ==="
+echo "=== pre-cloudservices: done ==="

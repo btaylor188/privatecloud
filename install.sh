@@ -199,9 +199,9 @@ if is_selected qbittorrentvpn; then
     ask "Local subnet for qBittorrent auth bypass (CIDR)" QBIT_SUBNET "${_detected_subnet}"
     ask "VPN type for qBittorrent+VPN (wireguard/openvpn)" GLUETUN_VPN_TYPE "wireguard"
     if [[ "$GLUETUN_VPN_TYPE" == "wireguard" ]]; then
-        make_dir "${DOCKERPATH}/arr/gluetun/wireguard"
+        make_dir "${DOCKERPATH}/mediaserver/gluetun/wireguard"
     else
-        make_dir "${DOCKERPATH}/arr/gluetun"
+        make_dir "${DOCKERPATH}/mediaserver/gluetun"
         echo "OpenVPN username:"
         read -r OPENVPN_USER
         echo "OpenVPN password:"
@@ -210,10 +210,10 @@ if is_selected qbittorrentvpn; then
         echo "Paste your OpenVPN config file contents, then press Ctrl+D on a new line (config must use an IP address, not a hostname):"
         _ovpn_content=$(cat)
         if [[ -z "$_ovpn_content" ]]; then
-            echo "Warning: OpenVPN config is empty. You must place a valid config at ${DOCKERPATH}/arr/gluetun/custom.conf before starting gluetun."
+            echo "Warning: OpenVPN config is empty. You must place a valid config at ${DOCKERPATH}/mediaserver/gluetun/custom.conf before starting gluetun."
         else
-            printf '%s\n' "$_ovpn_content" > "${DOCKERPATH}/arr/gluetun/custom.conf"
-            echo "Config written to ${DOCKERPATH}/arr/gluetun/custom.conf"
+            printf '%s\n' "$_ovpn_content" > "${DOCKERPATH}/mediaserver/gluetun/custom.conf"
+            echo "Config written to ${DOCKERPATH}/mediaserver/gluetun/custom.conf"
         fi
     fi
 fi
@@ -239,15 +239,15 @@ fi
 if is_selected ocis; then
     echo "oCIS URL (e.g. https://files.yourdomain.com or https://localhost:9200):"
     read -r OCIS_URL
-    make_dir "${DOCKERPATH}/cloud/ocis/config"
-    make_dir "${DOCKERPATH}/cloud/ocis/data"
+    make_dir "${DOCKERPATH}/cloudservices/ocis/config"
+    make_dir "${DOCKERPATH}/cloudservices/ocis/data"
 fi
 
 if is_selected immich; then
-    ask "Path for Immich photo library" IMMICH_UPLOAD_LOCATION "${DOCKERPATH}/cloud/immich/upload"
+    ask "Path for Immich photo library" IMMICH_UPLOAD_LOCATION "${DOCKERPATH}/cloudservices/immich/upload"
     make_dir "${IMMICH_UPLOAD_LOCATION}"
-    make_dir "${DOCKERPATH}/cloud/immich/postgres"
-    make_dir "${DOCKERPATH}/cloud/immich/model-cache"
+    make_dir "${DOCKERPATH}/cloudservices/immich/postgres"
+    make_dir "${DOCKERPATH}/cloudservices/immich/model-cache"
     echo "Immich DB password:"
     read -rs IMMICH_DB_PASSWORD
     echo
@@ -256,9 +256,9 @@ fi
 if is_selected seafile; then
     echo "Seafile server hostname (e.g. files.yourdomain.com or your server IP):"
     read -r SEAFILE_HOSTNAME
-    ask "Path for Seafile bulk storage" SEAFILE_STORAGE_PATH "${DOCKERPATH}/cloud/seafile/storage"
-    make_dir "${DOCKERPATH}/cloud/seafile/data"
-    make_dir "${DOCKERPATH}/cloud/seafile/db"
+    ask "Path for Seafile bulk storage" SEAFILE_STORAGE_PATH "${DOCKERPATH}/cloudservices/seafile/storage"
+    make_dir "${DOCKERPATH}/cloudservices/seafile/data"
+    make_dir "${DOCKERPATH}/cloudservices/seafile/db"
     make_dir "${SEAFILE_STORAGE_PATH}"
     echo "Seafile DB root password:"
     read -rs SEAFILE_DB_ROOT_PASSWORD
@@ -296,10 +296,10 @@ OPENVPN_PASSWORD=${OPENVPN_PASSWORD:-}
 OCIS_URL=${OCIS_URL:-}
 NCDBROOT=${NCDBROOT:-}
 NCDBUSER=${NCDBUSER:-}
-IMMICH_UPLOAD_LOCATION=${IMMICH_UPLOAD_LOCATION:-/opt/docker/cloud/immich/upload}
+IMMICH_UPLOAD_LOCATION=${IMMICH_UPLOAD_LOCATION:-/opt/docker/cloudservices/immich/upload}
 IMMICH_DB_PASSWORD=${IMMICH_DB_PASSWORD:-}
 SEAFILE_HOSTNAME=${SEAFILE_HOSTNAME:-}
-SEAFILE_STORAGE_PATH=${SEAFILE_STORAGE_PATH:-${DOCKERPATH}/cloud/seafile/storage}
+SEAFILE_STORAGE_PATH=${SEAFILE_STORAGE_PATH:-${DOCKERPATH}/cloudservices/seafile/storage}
 SEAFILE_DB_ROOT_PASSWORD=${SEAFILE_DB_ROOT_PASSWORD:-}
 SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL:-}
 SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD:-}
@@ -324,10 +324,10 @@ sudo docker network inspect external >/dev/null 2>&1 || \
 # ─────────────────────────────────────────────
 #  Pre-configure services
 # ─────────────────────────────────────────────
-if is_selected sonarr && [[ ! -f "${DOCKERPATH}/arr/sonarr/config.xml" ]]; then
-    make_dir "${DOCKERPATH}/arr/sonarr"
+if is_selected sonarr && [[ ! -f "${DOCKERPATH}/mediaserver/sonarr/config.xml" ]]; then
+    make_dir "${DOCKERPATH}/mediaserver/sonarr"
     SONARR_API_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 32)
-    sudo tee "${DOCKERPATH}/arr/sonarr/config.xml" > /dev/null <<EOF
+    sudo tee "${DOCKERPATH}/mediaserver/sonarr/config.xml" > /dev/null <<EOF
 <Config>
   <BindAddress>*</BindAddress>
   <Port>8989</Port>
@@ -344,13 +344,13 @@ if is_selected sonarr && [[ ! -f "${DOCKERPATH}/arr/sonarr/config.xml" ]]; then
   <InstanceName>Sonarr</InstanceName>
 </Config>
 EOF
-    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/arr/sonarr/config.xml"
+    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/sonarr/config.xml"
 fi
 
-if is_selected radarr && [[ ! -f "${DOCKERPATH}/arr/radarr/config.xml" ]]; then
-    make_dir "${DOCKERPATH}/arr/radarr"
+if is_selected radarr && [[ ! -f "${DOCKERPATH}/mediaserver/radarr/config.xml" ]]; then
+    make_dir "${DOCKERPATH}/mediaserver/radarr"
     RADARR_API_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 32)
-    sudo tee "${DOCKERPATH}/arr/radarr/config.xml" > /dev/null <<EOF
+    sudo tee "${DOCKERPATH}/mediaserver/radarr/config.xml" > /dev/null <<EOF
 <Config>
   <BindAddress>*</BindAddress>
   <Port>7878</Port>
@@ -367,13 +367,13 @@ if is_selected radarr && [[ ! -f "${DOCKERPATH}/arr/radarr/config.xml" ]]; then
   <InstanceName>Radarr</InstanceName>
 </Config>
 EOF
-    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/arr/radarr/config.xml"
+    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/radarr/config.xml"
 fi
 
-if is_selected prowlarr && [[ ! -f "${DOCKERPATH}/arr/prowlarr/config.xml" ]]; then
-    make_dir "${DOCKERPATH}/arr/prowlarr"
+if is_selected prowlarr && [[ ! -f "${DOCKERPATH}/mediaserver/prowlarr/config.xml" ]]; then
+    make_dir "${DOCKERPATH}/mediaserver/prowlarr"
     PROWLARR_API_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 32)
-    sudo tee "${DOCKERPATH}/arr/prowlarr/config.xml" > /dev/null <<EOF
+    sudo tee "${DOCKERPATH}/mediaserver/prowlarr/config.xml" > /dev/null <<EOF
 <Config>
   <BindAddress>*</BindAddress>
   <Port>9696</Port>
@@ -390,12 +390,12 @@ if is_selected prowlarr && [[ ! -f "${DOCKERPATH}/arr/prowlarr/config.xml" ]]; t
   <InstanceName>Prowlarr</InstanceName>
 </Config>
 EOF
-    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/arr/prowlarr/config.xml"
+    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/prowlarr/config.xml"
 fi
 
-if is_selected qbittorrentvpn && [[ ! -f "${DOCKERPATH}/arr/qbittorrent/qBittorrent/qBittorrent.conf" ]]; then
-    make_dir "${DOCKERPATH}/arr/qbittorrent/qBittorrent"
-    sudo tee "${DOCKERPATH}/arr/qbittorrent/qBittorrent/qBittorrent.conf" > /dev/null <<EOF
+if is_selected qbittorrentvpn && [[ ! -f "${DOCKERPATH}/mediaserver/qbittorrent/qBittorrent/qBittorrent.conf" ]]; then
+    make_dir "${DOCKERPATH}/mediaserver/qbittorrent/qBittorrent"
+    sudo tee "${DOCKERPATH}/mediaserver/qbittorrent/qBittorrent/qBittorrent.conf" > /dev/null <<EOF
 [BitTorrent]
 Session\DefaultSavePath=/downloads
 
@@ -403,15 +403,15 @@ Session\DefaultSavePath=/downloads
 WebUI\AuthSubnetWhitelist=${QBIT_SUBNET}
 WebUI\AuthSubnetWhitelistEnabled=true
 EOF
-    sudo chown -R "${PUID}:${PGID}" "${DOCKERPATH}/arr/qbittorrent"
+    sudo chown -R "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/qbittorrent"
 fi
 
 # ─────────────────────────────────────────────
 #  Write per-service compose files
 # ─────────────────────────────────────────────
 if is_selected wud; then
-    make_dir "${DOCKERPATH}/wud"
-    cat > "${DOCKERPATH}/wud/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/infrastructure/wud"
+    cat > "${DOCKERPATH}/infrastructure/wud/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -424,7 +424,7 @@ services:
       - 3000:3000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${DOCKERPATH}/wud:/store
+      - ${DOCKERPATH}/infrastructure/wud:/store
     networks:
       - internal
     restart: unless-stopped
@@ -434,8 +434,8 @@ EOF
 fi
 
 if is_selected netdata; then
-    make_dir "${DOCKERPATH}/netdata"
-    cat > "${DOCKERPATH}/netdata/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/infrastructure/netdata"
+    cat > "${DOCKERPATH}/infrastructure/netdata/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -457,8 +457,8 @@ EOF
 fi
 
 if is_selected duckdns; then
-    make_dir "${DOCKERPATH}/duckdns"
-    cat > "${DOCKERPATH}/duckdns/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/infrastructure/duckdns"
+    cat > "${DOCKERPATH}/infrastructure/duckdns/docker-compose.yaml" <<EOF
 networks:
   external:
     external: true
@@ -477,14 +477,14 @@ services:
       - TOKEN=${DUCKDNSTOKEN}
       - LOG_FILE=false
     volumes:
-      - ${DOCKERPATH}/duckdns:/config
+      - ${DOCKERPATH}/infrastructure/duckdns:/config
     restart: unless-stopped
 EOF
 fi
 
 if is_selected uptime-kuma; then
-    make_dir "${DOCKERPATH}/arr/uptime-kuma"
-    cat > "${DOCKERPATH}/arr/uptime-kuma/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/uptime-kuma"
+    cat > "${DOCKERPATH}/mediaserver/uptime-kuma/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -500,13 +500,13 @@ services:
       - internal
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${DOCKERPATH}/arr/uptime-kuma:/app/data
+      - ${DOCKERPATH}/mediaserver/uptime-kuma:/app/data
 EOF
 fi
 
 if is_selected speedtest; then
-    make_dir "${DOCKERPATH}/speedtest"
-    cat > "${DOCKERPATH}/speedtest/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/infrastructure/speedtest"
+    cat > "${DOCKERPATH}/infrastructure/speedtest/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -531,8 +531,8 @@ EOF
 fi
 
 if is_selected nzbget; then
-    make_dir "${DOCKERPATH}/arr/nzbget"
-    cat > "${DOCKERPATH}/arr/nzbget/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/nzbget"
+    cat > "${DOCKERPATH}/mediaserver/nzbget/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -551,7 +551,7 @@ services:
       - TERM=xterm
     volumes:
       - /etc/localtime:/etc/localtime
-      - ${DOCKERPATH}/arr/nzbget:/config
+      - ${DOCKERPATH}/mediaserver/nzbget:/config
       - ${PROCESSPATH}:/mnt/processing
       - ${MEDIAPATH}:/mnt/Media
       - /tmp:/tmp
@@ -562,8 +562,8 @@ EOF
 fi
 
 if is_selected qbittorrentvpn; then
-    make_dir "${DOCKERPATH}/arr/qbittorrent"
-    cat > "${DOCKERPATH}/arr/qbittorrent/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/qbittorrent"
+    cat > "${DOCKERPATH}/mediaserver/qbittorrent/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -579,7 +579,7 @@ services:
     ports:
       - 8080:8080
     volumes:
-      - ${DOCKERPATH}/arr/gluetun:/gluetun
+      - ${DOCKERPATH}/mediaserver/gluetun:/gluetun
     environment:
       - VPN_SERVICE_PROVIDER=custom
       - VPN_TYPE=${GLUETUN_VPN_TYPE}
@@ -604,7 +604,7 @@ services:
       - TZ=${TZ}
       - WEBUI_PORT=8080
     volumes:
-      - ${DOCKERPATH}/arr/qbittorrent:/config
+      - ${DOCKERPATH}/mediaserver/qbittorrent:/config
       - ${MEDIAPATH}:/mnt/Media
       - ${PROCESSPATH}:/mnt/processing
     restart: unless-stopped
@@ -612,8 +612,8 @@ EOF
 fi
 
 if is_selected prowlarr; then
-    make_dir "${DOCKERPATH}/arr/prowlarr"
-    cat > "${DOCKERPATH}/arr/prowlarr/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/prowlarr"
+    cat > "${DOCKERPATH}/mediaserver/prowlarr/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -627,7 +627,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${DOCKERPATH}/arr/prowlarr:/config
+      - ${DOCKERPATH}/mediaserver/prowlarr:/config
     ports:
       - 9696:9696
     networks:
@@ -637,8 +637,8 @@ EOF
 fi
 
 if is_selected sonarr; then
-    make_dir "${DOCKERPATH}/arr/sonarr"
-    cat > "${DOCKERPATH}/arr/sonarr/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/sonarr"
+    cat > "${DOCKERPATH}/mediaserver/sonarr/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -659,7 +659,7 @@ services:
       - LANG=en_US.UTF-8
     volumes:
       - /etc/localtime:/etc/localtime
-      - ${DOCKERPATH}/arr/sonarr:/config
+      - ${DOCKERPATH}/mediaserver/sonarr:/config
       - ${MEDIAPATH}:/mnt/Media
       - ${PROCESSPATH}:/mnt/processing
     networks:
@@ -669,8 +669,8 @@ EOF
 fi
 
 if is_selected radarr; then
-    make_dir "${DOCKERPATH}/arr/radarr"
-    cat > "${DOCKERPATH}/arr/radarr/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/radarr"
+    cat > "${DOCKERPATH}/mediaserver/radarr/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -691,7 +691,7 @@ services:
       - LANG=en_US.UTF-8
     volumes:
       - /etc/localtime:/etc/localtime
-      - ${DOCKERPATH}/arr/radarr:/config
+      - ${DOCKERPATH}/mediaserver/radarr:/config
       - ${MEDIAPATH}:/mnt/Media
       - ${PROCESSPATH}:/mnt/processing
     networks:
@@ -701,8 +701,8 @@ EOF
 fi
 
 if is_selected tdarr; then
-    make_dir "${DOCKERPATH}/arr/tdarr"
-    cat > "${DOCKERPATH}/arr/tdarr/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/tdarr"
+    cat > "${DOCKERPATH}/mediaserver/tdarr/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -712,9 +712,9 @@ services:
     container_name: tdarr_server
     image: haveagitgat/tdarr
     volumes:
-      - ${DOCKERPATH}/arr/tdarr/server:/app/server
-      - ${DOCKERPATH}/arr/tdarr/configs:/app/configs
-      - ${DOCKERPATH}/arr/tdarr/logs:/app/logs
+      - ${DOCKERPATH}/mediaserver/tdarr/server:/app/server
+      - ${DOCKERPATH}/mediaserver/tdarr/configs:/app/configs
+      - ${DOCKERPATH}/mediaserver/tdarr/logs:/app/logs
       - ${MEDIAPATH}:/media
       - ${PROCESSPATH}:/temp
     environment:
@@ -735,8 +735,8 @@ services:
     container_name: tdarr_node
     image: haveagitgat/tdarr_node
     volumes:
-      - ${DOCKERPATH}/arr/tdarr/configs:/app/configs
-      - ${DOCKERPATH}/arr/tdarr/logs:/app/logs
+      - ${DOCKERPATH}/mediaserver/tdarr/configs:/app/configs
+      - ${DOCKERPATH}/mediaserver/tdarr/logs:/app/logs
       - ${MEDIAPATH}:/media
       - ${PROCESSPATH}:/temp
     network_mode: service:tdarr
@@ -754,8 +754,8 @@ EOF
 fi
 
 if is_selected plex; then
-    make_dir "${DOCKERPATH}/media/plex"
-    cat > "${DOCKERPATH}/media/plex/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/plex"
+    cat > "${DOCKERPATH}/mediaserver/plex/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -785,7 +785,7 @@ services:
       - internal
       - external
     volumes:
-      - ${DOCKERPATH}/media/plex/database:/config
+      - ${DOCKERPATH}/mediaserver/plex/database:/config
       - /dev/shm:/transcode
       - ${MEDIAPATH}:/mnt/Media
     restart: always
@@ -793,8 +793,8 @@ EOF
 fi
 
 if is_selected seerr; then
-    make_dir "${DOCKERPATH}/media/seerr"
-    cat > "${DOCKERPATH}/media/seerr/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/mediaserver/seerr"
+    cat > "${DOCKERPATH}/mediaserver/seerr/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -810,7 +810,7 @@ services:
     ports:
       - 5055:5055
     volumes:
-      - ${DOCKERPATH}/media/seerr/config:/app/config
+      - ${DOCKERPATH}/mediaserver/seerr/config:/app/config
     networks:
       - internal
     restart: unless-stopped
@@ -818,8 +818,8 @@ EOF
 fi
 
 if is_selected nextcloud; then
-    make_dir "${DOCKERPATH}/cloud/nextcloud"
-    cat > "${DOCKERPATH}/cloud/nextcloud/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/cloudservices/nextcloud"
+    cat > "${DOCKERPATH}/cloudservices/nextcloud/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -834,8 +834,8 @@ services:
     depends_on:
       - nextcloud-db
     volumes:
-      - ${DOCKERPATH}/cloud/nextcloud/html:/var/www/html
-      - ${DOCKERPATH}/cloud/nextcloud/data:/var/www/html/data
+      - ${DOCKERPATH}/cloudservices/nextcloud/html:/var/www/html
+      - ${DOCKERPATH}/cloudservices/nextcloud/data:/var/www/html/data
     environment:
       - MYSQL_PASSWORD=${NCDBUSER}
       - MYSQL_DATABASE=nextcloud
@@ -850,7 +850,7 @@ services:
     restart: always
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      - ${DOCKERPATH}/cloud/nextcloud/db:/var/lib/mysql
+      - ${DOCKERPATH}/cloudservices/nextcloud/db:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${NCDBROOT}
       - MYSQL_PASSWORD=${NCDBUSER}
@@ -862,8 +862,8 @@ EOF
 fi
 
 if is_selected ocis; then
-    make_dir "${DOCKERPATH}/cloud/ocis"
-    cat > "${DOCKERPATH}/cloud/ocis/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/cloudservices/ocis"
+    cat > "${DOCKERPATH}/cloudservices/ocis/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -886,8 +886,8 @@ services:
       - OCIS_INSECURE=true
       - OCIS_LOG_LEVEL=info
     volumes:
-      - ${DOCKERPATH}/cloud/ocis/config:/etc/ocis
-      - ${DOCKERPATH}/cloud/ocis/data:/var/lib/ocis
+      - ${DOCKERPATH}/cloudservices/ocis/config:/etc/ocis
+      - ${DOCKERPATH}/cloudservices/ocis/data:/var/lib/ocis
     networks:
       - internal
     logging:
@@ -896,8 +896,8 @@ EOF
 fi
 
 if is_selected immich; then
-    make_dir "${DOCKERPATH}/cloud/immich"
-    cat > "${DOCKERPATH}/cloud/immich/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/cloudservices/immich"
+    cat > "${DOCKERPATH}/cloudservices/immich/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -928,7 +928,7 @@ services:
     container_name: immich_machine_learning
     image: ghcr.io/immich-app/immich-machine-learning:release
     volumes:
-      - ${DOCKERPATH}/cloud/immich/model-cache:/cache
+      - ${DOCKERPATH}/cloudservices/immich/model-cache:/cache
     environment:
       - DB_HOSTNAME=immich-postgres
       - DB_USERNAME=immich
@@ -954,7 +954,7 @@ services:
       - POSTGRES_USER=immich
       - POSTGRES_DB=immich
     volumes:
-      - ${DOCKERPATH}/cloud/immich/postgres:/var/lib/postgresql/data
+      - ${DOCKERPATH}/cloudservices/immich/postgres:/var/lib/postgresql/data
     networks:
       - internal
     restart: always
@@ -962,8 +962,8 @@ EOF
 fi
 
 if is_selected seafile; then
-    make_dir "${DOCKERPATH}/cloud/seafile"
-    cat > "${DOCKERPATH}/cloud/seafile/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/cloudservices/seafile"
+    cat > "${DOCKERPATH}/cloudservices/seafile/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -975,7 +975,7 @@ services:
     ports:
       - 8090:80
     volumes:
-      - ${DOCKERPATH}/cloud/seafile/data:/shared
+      - ${DOCKERPATH}/cloudservices/seafile/data:/shared
       - ${SEAFILE_STORAGE_PATH}:/shared/seafile/seafile-data
     environment:
       - DB_HOST=seafile-db
@@ -999,7 +999,7 @@ services:
       - MYSQL_ROOT_PASSWORD=${SEAFILE_DB_ROOT_PASSWORD}
       - MYSQL_LOG_CONSOLE=true
     volumes:
-      - ${DOCKERPATH}/cloud/seafile/db:/var/lib/mysql
+      - ${DOCKERPATH}/cloudservices/seafile/db:/var/lib/mysql
     networks:
       - internal
     restart: always
@@ -1015,8 +1015,8 @@ EOF
 fi
 
 if is_selected vaultwarden; then
-    make_dir "${DOCKERPATH}/cloud/vaultwarden"
-    cat > "${DOCKERPATH}/cloud/vaultwarden/docker-compose.yaml" <<EOF
+    make_dir "${DOCKERPATH}/cloudservices/vaultwarden"
+    cat > "${DOCKERPATH}/cloudservices/vaultwarden/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
@@ -1028,7 +1028,7 @@ services:
     ports:
       - 8222:80
     volumes:
-      - ${DOCKERPATH}/cloud/vaultwarden:/data
+      - ${DOCKERPATH}/cloudservices/vaultwarden:/data
     environment:
       - WEBSOCKET_ENABLED=true
     networks:
@@ -1069,7 +1069,7 @@ NEXTCLOUD_DB_PASSWORD='${NCDBROOT:-}'
 EOF
     sudo chmod 600 "${DOCKERPATH}/backup/backup.conf"
 
-    for script in pre-cloud.sh post-cloud.sh pre-arr.sh post-arr.sh pre-media.sh post-media.sh; do
+    for script in pre-cloudservices.sh post-cloudservices.sh pre-mediaserver.sh post-mediaserver.sh pre-infrastructure.sh post-infrastructure.sh; do
         sudo cp "${SCRIPT_DIR}/backup/${script}" "${DOCKERPATH}/backup/${script}"
         sudo chmod +x "${DOCKERPATH}/backup/${script}"
     done
@@ -1089,12 +1089,12 @@ EOF
     echo "Hook scripts installed at ${DOCKERPATH}/backup/"
     echo "In Backrest, set hooks to: ${DOCKERPATH}/backup/pre-<group>.sh and ${DOCKERPATH}/backup/post-<group>.sh"
 
-    make_dir "${DOCKERPATH}/cloud/backrest/data"
-    make_dir "${DOCKERPATH}/cloud/backrest/config"
-    make_dir "${DOCKERPATH}/cloud/backrest/cache"
-    make_dir "${DOCKERPATH}/cloud/backrest/tmp"
+    make_dir "${DOCKERPATH}/cloudservices/backrest/data"
+    make_dir "${DOCKERPATH}/cloudservices/backrest/config"
+    make_dir "${DOCKERPATH}/cloudservices/backrest/cache"
+    make_dir "${DOCKERPATH}/cloudservices/backrest/tmp"
 
-    sudo tee "${DOCKERPATH}/cloud/backrest/docker-compose.yaml" > /dev/null <<EOF
+    sudo tee "${DOCKERPATH}/cloudservices/backrest/docker-compose.yaml" > /dev/null <<EOF
 networks:
   internal:
     external: true
@@ -1107,10 +1107,10 @@ services:
     ports:
       - 9898:9898
     volumes:
-      - ${DOCKERPATH}/cloud/backrest/data:/data
-      - ${DOCKERPATH}/cloud/backrest/config:/config
-      - ${DOCKERPATH}/cloud/backrest/cache:/cache
-      - ${DOCKERPATH}/cloud/backrest/tmp:/tmp
+      - ${DOCKERPATH}/cloudservices/backrest/data:/data
+      - ${DOCKERPATH}/cloudservices/backrest/config:/config
+      - ${DOCKERPATH}/cloudservices/backrest/cache:/cache
+      - ${DOCKERPATH}/cloudservices/backrest/tmp:/tmp
       - ${DOCKERPATH}:${DOCKERPATH}:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
@@ -1150,9 +1150,9 @@ is_selected speedtest    && print_url "Speedtest"      "http://${LOCAL_IP}:8223"
 is_selected nzbget       && print_url "NZBGet"         "http://${LOCAL_IP}:6789  (user: nzbget / pass: tegbzn6789)"
 if is_selected qbittorrentvpn; then
     if [[ "${GLUETUN_VPN_TYPE}" == "wireguard" ]]; then
-        print_url "qBittorrent+VPN" "http://${LOCAL_IP}:8080  (place config at ${DOCKERPATH}/arr/gluetun/wireguard/wg0.conf)"
+        print_url "qBittorrent+VPN" "http://${LOCAL_IP}:8080  (place config at ${DOCKERPATH}/mediaserver/gluetun/wireguard/wg0.conf)"
     else
-        print_url "qBittorrent+VPN" "http://${LOCAL_IP}:8080  (place config at ${DOCKERPATH}/arr/gluetun/custom.conf)"
+        print_url "qBittorrent+VPN" "http://${LOCAL_IP}:8080  (place config at ${DOCKERPATH}/mediaserver/gluetun/custom.conf)"
     fi
 fi
 is_selected prowlarr     && print_url "Prowlarr"       "http://${LOCAL_IP}:9696"

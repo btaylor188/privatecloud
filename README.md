@@ -111,9 +111,9 @@ Backrest (web UI) → pre hook → restic backup → post hook
 
 | Group | Containers |
 |-------|-----------|
-| Cloud | Immich, Seafile, Nextcloud, oCIS, Vaultwarden |
-| ARR | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Tdarr, Uptime Kuma |
-| Media | Plex, Seerr |
+| cloudservices | Immich, Seafile, Nextcloud, oCIS, Vaultwarden, Backrest |
+| mediaserver | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Gluetun, Tdarr, Uptime Kuma, Plex, Seerr |
+| infrastructure | Portainer, WUD, Netdata, Speedtest (Cloudflared is skipped — stopping it kills the tunnel) |
 
 Schedules, retention policies, source paths, and repos are all configured in the Backrest web UI after install.
 
@@ -123,14 +123,14 @@ Installed to `${DOCKERPATH}/backup/` and mounted into the Backrest container at 
 
 | Script | Purpose |
 |--------|---------|
-| `${DOCKERPATH}/backup/pre-cloud.sh` | Dump DBs, stop Cloud containers |
-| `${DOCKERPATH}/backup/post-cloud.sh` | Restart Cloud containers in dependency order |
-| `${DOCKERPATH}/backup/pre-arr.sh` | Stop ARR containers |
-| `${DOCKERPATH}/backup/post-arr.sh` | Restart ARR containers |
-| `${DOCKERPATH}/backup/pre-media.sh` | Stop Media containers |
-| `${DOCKERPATH}/backup/post-media.sh` | Restart Media containers |
+| `${DOCKERPATH}/backup/pre-cloudservices.sh` | Dump DBs, stop cloudservices containers |
+| `${DOCKERPATH}/backup/post-cloudservices.sh` | Restart cloudservices containers in dependency order |
+| `${DOCKERPATH}/backup/pre-mediaserver.sh` | Stop mediaserver containers (gluetun last) |
+| `${DOCKERPATH}/backup/post-mediaserver.sh` | Restart mediaserver containers (gluetun first) |
+| `${DOCKERPATH}/backup/pre-infrastructure.sh` | Stop infrastructure containers (cloudflared skipped) |
+| `${DOCKERPATH}/backup/post-infrastructure.sh` | Restart infrastructure containers |
 
-DB dumps are written to `${DOCKERPATH}/cloud/backup/dumps/` — they are automatically included when Backrest snapshots `${DOCKERPATH}/cloud`.
+DB dumps are written to `${DOCKERPATH}/cloudservices/backup/dumps/` — they are automatically included when Backrest snapshots `${DOCKERPATH}/cloudservices`.
 
 `backup.conf` (mode 600) holds only the DB passwords needed by `pre-cloud.sh`.
 
@@ -139,9 +139,9 @@ DB dumps are written to `${DOCKERPATH}/cloud/backup/dumps/` — they are automat
 1. Open `http://server:9898`
 2. Add a repo (B2, local path, or both) with your credentials and restic password
 3. Create a plan for each group with the following source paths and schedule:
-   - **Cloud plan:** `${DOCKERPATH}/cloud`
-   - **ARR plan:** `${DOCKERPATH}/arr`
-   - **Media plan:** `${DOCKERPATH}/media`
+   - **cloudservices plan:** `${DOCKERPATH}/cloudservices`
+   - **mediaserver plan:** `${DOCKERPATH}/mediaserver`
+   - **infrastructure plan:** `${DOCKERPATH}/infrastructure`
 4. Add hook commands:
    - **Before backup:** `${DOCKERPATH}/backup/pre-<group>.sh`
    - **After backup:** `${DOCKERPATH}/backup/post-<group>.sh`
@@ -155,17 +155,17 @@ export B2_ACCOUNT_ID="your-key-id"
 export B2_ACCOUNT_KEY="your-app-key"
 export RESTIC_PASSWORD="your-repo-password"
 
-restic -r b2:mybucket:/cloud snapshots
-restic -r b2:mybucket:/cloud restore latest --target /tmp/restore
-restic -r b2:mybucket:/cloud restore latest --target /tmp/restore \
-    --include /opt/docker/cloud/immich
+restic -r b2:mybucket:/cloudservices snapshots
+restic -r b2:mybucket:/cloudservices restore latest --target /tmp/restore
+restic -r b2:mybucket:/cloudservices restore latest --target /tmp/restore \
+    --include /opt/docker/cloudservices/immich
 ```
 
 Restore DB dumps:
 
 ```bash
-docker exec -i immich_postgres psql -U immich < /tmp/restore/.../immich_db_TIMESTAMP.sql
-docker exec -i seafile-db mysql -uroot -p < /tmp/restore/.../seafile_db_TIMESTAMP.sql
+docker exec -i immich_postgres psql -U immich < /tmp/restore/.../cloudservices/backup/dumps/immich_db_TIMESTAMP.sql
+docker exec -i seafile-db mysql -uroot -p < /tmp/restore/.../cloudservices/backup/dumps/seafile_db_TIMESTAMP.sql
 ```
 
 > Bulk storage paths (Immich upload, Seafile storage) are not included in snapshots — back those up separately via your NAS backup solution.
@@ -184,7 +184,7 @@ All services start unchecked — select only what you need. Cloudflared is alway
 Uses [Gluetun](https://github.com/qdm12/gluetun) as a VPN sidecar — works with any WireGuard-compatible provider (Mullvad, ProtonVPN, NordVPN, etc.). Before starting:
 
 1. Download a WireGuard `.conf` file from your VPN provider's dashboard
-2. Place it at `${DOCKERPATH}/arr/gluetun/wireguard/wg0.conf`
+2. Place it at `${DOCKERPATH}/mediaserver/gluetun/wireguard/wg0.conf`
 3. Start the stack — qBittorrent routes all traffic through the tunnel with a killswitch
 
 ### Seerr
@@ -197,7 +197,7 @@ Self-hosted Google Photos alternative. Deploys four containers: `immich-server`,
 Self-hosted Dropbox alternative. Deploys three containers: `seafile`, `seafile-db` (MariaDB), and `seafile-memcached`. The server hostname is used to generate download links — set it to your domain or server IP.
 
 #### Post-install: HTTPS configuration
-If Seafile is served over HTTPS (e.g. behind a Cloudflare Tunnel), two config files need to be updated after the first run. They live at `${DOCKERPATH}/cloud/seafile/data/seafile/conf/`.
+If Seafile is served over HTTPS (e.g. behind a Cloudflare Tunnel), two config files need to be updated after the first run. They live at `${DOCKERPATH}/cloudservices/seafile/data/seafile/conf/`.
 
 **`seahub_settings.py`** — change `http` to `https` on the SERVICE_URL and FILE_SERVER_ROOT lines, and add the CSRF line if it isn't there:
 
