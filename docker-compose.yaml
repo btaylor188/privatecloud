@@ -544,3 +544,19 @@ services:
     networks:
       - internal
     restart: always
+
+  vaultwarden:
+    container_name: vaultwarden
+    profiles: [vaultwarden]
+    image: vaultwarden/server:latest
+    ports:
+      - 8222:80
+    volumes:
+      - ${DOCKERPATH}/vaultwarden:/data
+    environment:
+      - WEBSOCKET_ENABLED=true
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true

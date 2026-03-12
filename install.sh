@@ -51,7 +51,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile vaultwarden)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -71,6 +71,7 @@ LABELS=(
     "oCIS              ownCloud Infinite Scale"
     "Immich            Photo & video backup"
     "Seafile           File sync & share"
+    "Vaultwarden       Password manager"
 )
 
 SVC_GROUPS=(
@@ -78,11 +79,11 @@ SVC_GROUPS=(
     "Downloaders" "Downloaders"
     "*ARR!" "*ARR!" "*ARR!" "*ARR!"
     "Media Server" "Media Server"
-    "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
+    "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0)
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0 0)
 
 show_menu() {
     echo ""
@@ -998,6 +999,29 @@ services:
 EOF
 fi
 
+if is_selected vaultwarden; then
+    make_dir "${DOCKERPATH}/vaultwarden"
+    cat > "${DOCKERPATH}/vaultwarden/docker-compose.yaml" <<EOF
+networks:
+  internal:
+    external: true
+
+services:
+  vaultwarden:
+    container_name: vaultwarden
+    image: vaultwarden/server:latest
+    ports:
+      - 8222:80
+    volumes:
+      - ${DOCKERPATH}/vaultwarden:/data
+    environment:
+      - WEBSOCKET_ENABLED=true
+    networks:
+      - internal
+    restart: unless-stopped
+EOF
+fi
+
 # ─────────────────────────────────────────────
 #  Deploy selected services
 # ─────────────────────────────────────────────
@@ -1009,7 +1033,7 @@ ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckd
                         nzbget qbittorrentvpn \
                         prowlarr sonarr radarr tdarr \
                         plex seerr \
-                        nextcloud ocis immich seafile)"
+                        nextcloud ocis immich seafile vaultwarden)"
 
 [[ -n "$ALL_ARGS" ]] && sudo docker compose -f "$SCRIPT_DIR/docker-compose.yaml" $ALL_ARGS up -d
 
@@ -1050,6 +1074,7 @@ is_selected nextcloud    && print_url "Nextcloud"      "http://${LOCAL_IP}:8087"
 is_selected ocis         && print_url "oCIS"           "${OCIS_URL}"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
+is_selected vaultwarden  && print_url "Vaultwarden"    "http://${LOCAL_IP}:8222"
 is_selected duckdns      && print_url "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
 print_url "Cloudflared"    "(no UI — tunnel active)"
 

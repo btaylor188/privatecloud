@@ -85,6 +85,7 @@ chmod +x install.sh
 | 17 | oCIS | 9200 | ownCloud Infinite Scale; URL required |
 | 18 | Immich | 2283 | Self-hosted photo & video backup; DB credentials required |
 | 19 | Seafile | 8090 | Self-hosted file sync & share; DB and admin credentials required |
+| 20 | Vaultwarden | 8222 | Bitwarden-compatible password manager |
 
 ---
 
