@@ -546,6 +546,29 @@ services:
       - internal
     restart: always
 
+  backrest:
+    container_name: backrest
+    profiles: [backrest]
+    image: ghcr.io/garethgeorge/backrest:latest
+    ports:
+      - 9898:9898
+    volumes:
+      - ${DOCKERPATH}/backrest/data:/data
+      - ${DOCKERPATH}/backrest/config:/config
+      - ${DOCKERPATH}/backrest/cache:/cache
+      - ${DOCKERPATH}/backrest/tmp:/tmp
+    environment:
+      - BACKREST_DATA=/data
+      - BACKREST_CONFIG=/config/config.json
+      - XDG_CACHE_HOME=/cache
+      - TMPDIR=/tmp
+      - TZ=${TZ}
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+
   vaultwarden:
     container_name: vaultwarden
     profiles: [vaultwarden]

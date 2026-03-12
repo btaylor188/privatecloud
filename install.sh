@@ -44,6 +44,10 @@ BACKUP_RETENTION="${BACKUP_RETENTION:-30}"
 BACKUP_CRON_CLOUD="${BACKUP_CRON_CLOUD:-}"
 BACKUP_CRON_ARR="${BACKUP_CRON_ARR:-}"
 BACKUP_CRON_MEDIA="${BACKUP_CRON_MEDIA:-}"
+B2_BUCKET="${B2_BUCKET:-}"
+EXTRA_PATHS_CLOUD="${EXTRA_PATHS_CLOUD:-}"
+EXTRA_PATHS_ARR="${EXTRA_PATHS_ARR:-}"
+EXTRA_PATHS_MEDIA="${EXTRA_PATHS_MEDIA:-}"
 EOF
 }
 
@@ -56,7 +60,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile vaultwarden backup)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile vaultwarden backrest backup)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -77,6 +81,7 @@ LABELS=(
     "Immich            Photo & video backup"
     "Seafile           File sync & share"
     "Vaultwarden       Password manager"
+    "Backrest          Restic snapshot browser (port 9898)"
     "Backup            Automated backup scripts & cron jobs"
 )
 
@@ -86,11 +91,12 @@ SVC_GROUPS=(
     "*ARR!" "*ARR!" "*ARR!" "*ARR!"
     "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
+    "Infrastructure"
     "Backup"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0 0  0)
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0 0  0 0)
 
 show_menu() {
     echo ""
@@ -277,8 +283,19 @@ fi
 if is_selected backup; then
     echo ""
     echo "── Backup Settings ──"
-    ask "Backup destination path" BACKUPPATH "/mnt/backups"
+    ask "Backup destination path (local NAS, optional secondary repo)" BACKUPPATH "/mnt/backups"
     ask "Retention (days)"        BACKUP_RETENTION "30"
+    echo ""
+    echo "  Backblaze B2 settings (restic primary destination):"
+    ask "B2 bucket name       " B2_BUCKET "my-privatecloud-backup"
+    echo "  B2 key ID (not saved to config):"
+    read -r B2_KEY_ID
+    echo "  B2 application key (not saved to config):"
+    read -rs B2_APP_KEY
+    echo
+    echo "  Restic repository password — used to encrypt snapshots (not saved to config):"
+    read -rs RESTIC_PASSWORD
+    echo
     echo ""
     echo "  Backup schedules (cron format):"
     echo "  Cloud  = Immich, Seafile, Nextcloud, oCIS, Vaultwarden"
@@ -287,6 +304,11 @@ if is_selected backup; then
     ask "Cloud schedule " BACKUP_CRON_CLOUD  "0 2 * * 0"
     ask "ARR schedule   " BACKUP_CRON_ARR    "0 3 * * *"
     ask "Media schedule " BACKUP_CRON_MEDIA  "0 4 * * 0"
+    echo ""
+    echo "  Extra paths (space-separated, leave blank to skip):"
+    ask "Cloud extra paths " EXTRA_PATHS_CLOUD ""
+    ask "ARR extra paths   " EXTRA_PATHS_ARR   ""
+    ask "Media extra paths " EXTRA_PATHS_MEDIA ""
     save_config
 fi
 
@@ -294,7 +316,7 @@ fi
 #  Write .env file
 # ─────────────────────────────────────────────
 cat > "$SCRIPT_DIR/.env" <<EOF
-DOMAINNAME=${DOMAINNAME}
+DOMAINNAME=${DOMAINNAME:-}
 DOCKERPATH=${DOCKERPATH}
 PROCESSPATH=${PROCESSPATH:-/opt/processing}
 MEDIAPATH=${MEDIAPATH:-/mnt/media}
@@ -1060,7 +1082,8 @@ ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckd
                         nzbget qbittorrentvpn \
                         prowlarr sonarr radarr tdarr \
                         plex seerr \
-                        nextcloud ocis immich seafile vaultwarden)"
+                        nextcloud ocis immich seafile vaultwarden \
+                        backrest)"
 
 [[ -n "$ALL_ARGS" ]] && sudo docker compose -f "$SCRIPT_DIR/docker-compose.yaml" $ALL_ARGS up -d
 
@@ -1069,12 +1092,18 @@ ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckd
 # ─────────────────────────────────────────────
 if is_selected backup; then
     make_dir "${DOCKERPATH}/backup"
-    make_dir "${BACKUPPATH}/cloud"
-    make_dir "${BACKUPPATH}/arr"
-    make_dir "${BACKUPPATH}/media"
     make_dir "${BACKUPPATH}/logs"
 
-    # Generate backup.conf with resolved values
+    # Install restic if not already present
+    if ! command -v restic &>/dev/null; then
+        echo "Installing restic..."
+        sudo apt-get install -y restic 2>/dev/null || \
+        sudo snap install restic 2>/dev/null || \
+        { curl -fsSL https://github.com/restic/restic/releases/latest/download/restic_linux_amd64.bz2 | \
+          bunzip2 | sudo tee /usr/local/bin/restic > /dev/null && sudo chmod +x /usr/local/bin/restic; }
+    fi
+
+    # Generate backup.conf with resolved values (secrets included; file is chmod 600)
     sudo tee "${DOCKERPATH}/backup/backup.conf" > /dev/null <<EOF
 BACKUPPATH="${BACKUPPATH}"
 DOCKERPATH="${DOCKERPATH}"
@@ -1083,8 +1112,35 @@ SEAFILE_STORAGE_PATH="${SEAFILE_STORAGE_PATH}"
 RETENTION=${BACKUP_RETENTION}
 SEAFILE_DB_PASSWORD='${SEAFILE_DB_ROOT_PASSWORD}'
 NEXTCLOUD_DB_PASSWORD='${NCDBROOT}'
+
+# Backblaze B2 — restic primary destination
+B2_BUCKET="${B2_BUCKET}"
+B2_KEY_ID="${B2_KEY_ID}"
+B2_APP_KEY="${B2_APP_KEY}"
+RESTIC_PASSWORD="${RESTIC_PASSWORD}"
+
+# Extra paths — space-separated; edit freely to add more without reinstalling
+EXTRA_PATHS_CLOUD="${EXTRA_PATHS_CLOUD}"
+EXTRA_PATHS_ARR="${EXTRA_PATHS_ARR}"
+EXTRA_PATHS_MEDIA="${EXTRA_PATHS_MEDIA}"
 EOF
     sudo chmod 600 "${DOCKERPATH}/backup/backup.conf"
+
+    # Initialize restic repos (B2 + optional local)
+    for group in cloud arr media; do
+        export RESTIC_REPOSITORY="b2:${B2_BUCKET}:/${group}"
+        export RESTIC_PASSWORD="${RESTIC_PASSWORD}"
+        export B2_ACCOUNT_ID="${B2_KEY_ID}"
+        export B2_ACCOUNT_KEY="${B2_APP_KEY}"
+        echo "Initializing restic repo: ${RESTIC_REPOSITORY}"
+        restic snapshots &>/dev/null || restic init
+        if [[ -n "${BACKUPPATH}" ]]; then
+            make_dir "${BACKUPPATH}/${group}"
+            restic -r "${BACKUPPATH}/${group}" snapshots &>/dev/null || \
+            restic -r "${BACKUPPATH}/${group}" init
+        fi
+    done
+    unset RESTIC_REPOSITORY B2_ACCOUNT_ID B2_ACCOUNT_KEY
 
     # Copy scripts from repo and make executable
     for script in backup-cloud.sh backup-arr.sh backup-media.sh; do
@@ -1102,6 +1158,43 @@ EOF
     rm "$TMPCRON"
 
     echo "Backup configured — scripts at ${DOCKERPATH}/backup/"
+fi
+
+if is_selected backrest; then
+    make_dir "${DOCKERPATH}/backrest/data"
+    make_dir "${DOCKERPATH}/backrest/config"
+    make_dir "${DOCKERPATH}/backrest/cache"
+    make_dir "${DOCKERPATH}/backrest/tmp"
+
+    sudo tee "${DOCKERPATH}/backrest/docker-compose.yaml" > /dev/null <<EOF
+networks:
+  internal:
+    external: true
+
+services:
+  backrest:
+    container_name: backrest
+    profiles: [backrest]
+    image: ghcr.io/garethgeorge/backrest:latest
+    ports:
+      - 9898:9898
+    volumes:
+      - ${DOCKERPATH}/backrest/data:/data
+      - ${DOCKERPATH}/backrest/config:/config
+      - ${DOCKERPATH}/backrest/cache:/cache
+      - ${DOCKERPATH}/backrest/tmp:/tmp
+    environment:
+      - BACKREST_DATA=/data
+      - BACKREST_CONFIG=/config/config.json
+      - XDG_CACHE_HOME=/cache
+      - TMPDIR=/tmp
+      - TZ=${TZ}
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+EOF
 fi
 
 LOCAL_IP=$(hostname -I | awk '{print $1}')
@@ -1142,6 +1235,7 @@ is_selected ocis         && print_url "oCIS"           "${OCIS_URL}"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
 is_selected vaultwarden  && print_url "Vaultwarden"    "http://${LOCAL_IP}:8222"
+is_selected backrest     && print_url "Backrest"        "http://${LOCAL_IP}:9898  (add B2 repos via web UI)"
 is_selected duckdns      && print_url "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
 is_selected backup       && print_url "Backup"         "scripts: ${DOCKERPATH}/backup/  logs: ${BACKUPPATH}/logs/"
 print_url "Cloudflared"    "(no UI — tunnel active)"

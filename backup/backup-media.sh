@@ -4,14 +4,11 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/backup.conf"
 
-DATE=$(date +%Y%m%d_%H%M%S)
-DEST="${BACKUPPATH}/media"
 LOG="${BACKUPPATH}/logs/media.log"
+mkdir -p "${BACKUPPATH}/logs"
 
-mkdir -p "$DEST" "${BACKUPPATH}/logs"
-
-log()          { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
-is_running()   { docker ps -q --filter "name=^${1}$" | grep -q .; }
+log()        { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
+is_running() { docker ps -q --filter "name=^${1}$" | grep -q .; }
 
 log "=== Media backup started ==="
 
@@ -28,23 +25,47 @@ for c in plex seerr; do
     stop_if_running "$c"
 done
 
+# Build list of directories to snapshot
 DIRS=()
 for d in "${DOCKERPATH}/plex" "${DOCKERPATH}/seerr"; do
     [[ -d "$d" ]] && DIRS+=("$d")
 done
 
-if [[ ${#DIRS[@]} -gt 0 ]]; then
-    log "Creating archive: media_${DATE}.tar.gz"
-    tar -czf "${DEST}/media_${DATE}.tar.gz" "${DIRS[@]}" 2>>"$LOG"
-    log "Archive complete"
+# Add extra user-defined paths
+for p in ${EXTRA_PATHS_MEDIA}; do
+    [[ -d "$p" ]] && DIRS+=("$p")
+done
+
+# Backup to B2
+export B2_ACCOUNT_ID="${B2_KEY_ID}"
+export B2_ACCOUNT_KEY="${B2_APP_KEY}"
+export RESTIC_PASSWORD
+export RESTIC_REPOSITORY="b2:${B2_BUCKET}:/media"
+
+log "Running restic backup to B2 (${RESTIC_REPOSITORY})"
+restic backup "${DIRS[@]}" 2>>"$LOG"
+
+log "Running restic forget/prune on B2"
+restic forget \
+    --keep-daily  "${RETENTION}" \
+    --keep-weekly 4 \
+    --keep-monthly 3 \
+    --prune 2>>"$LOG"
+
+# Also backup to local NAS repo if BACKUPPATH is set
+if [[ -n "${BACKUPPATH}" ]]; then
+    log "Running restic backup to local repo (${BACKUPPATH}/media)"
+    restic -r "${BACKUPPATH}/media" backup "${DIRS[@]}" 2>>"$LOG"
+    restic -r "${BACKUPPATH}/media" forget \
+        --keep-daily  "${RETENTION}" \
+        --keep-weekly 4 \
+        --keep-monthly 3 \
+        --prune 2>>"$LOG"
 fi
 
 log "Restarting containers"
 for c in "${STOPPED[@]}"; do
     docker start "$c" >>"$LOG" 2>&1
 done
-
-log "Cleaning up backups older than ${RETENTION} days"
-find "$DEST" -name "*.tar.gz" -mtime +"${RETENTION}" -delete 2>>"$LOG"
 
 log "=== Media backup complete ==="

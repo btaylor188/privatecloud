@@ -90,13 +90,16 @@ chmod +x install.sh
 ### Backup
 | # | Service | Notes |
 |---|---------|-------|
-| 21 | Backup | Generates backup scripts and cron jobs for three service groups |
+| 20 | Backrest | Web UI for browsing and managing restic snapshots (port 9898) |
+| 21 | Backup | Installs restic, initializes B2 repos, and schedules backup cron jobs |
 
 ---
 
 ## Backup
 
-When selected, the installer prompts for a backup destination and retention period, then asks for a cron schedule for each of three groups:
+Backups use **[restic](https://restic.net/)** with **Backblaze B2** as the primary destination. Restic provides AES-256 encryption, deduplication, snapshot versioning, and fine-grained retention policies. The local NAS path (`BACKUPPATH`) is retained as an optional secondary local repo for fast restores.
+
+### Backup groups
 
 | Group | Containers | Default schedule |
 |-------|-----------|-----------------|
@@ -105,21 +108,78 @@ When selected, the installer prompts for a backup destination and retention peri
 | Media | Plex, Seerr | `0 4 * * 0` (Sun 4am) |
 
 **What each backup does:**
-1. Dumps databases live (Immich Postgres, Seafile MariaDB, Nextcloud MariaDB) before stopping containers
+1. Dumps databases into a temp directory (Immich Postgres, Seafile MariaDB, Nextcloud MariaDB)
 2. Stops the relevant containers
-3. Tars the config/metadata directories under `DOCKERPATH`
-4. Restarts containers in dependency order
-5. Deletes archives older than the retention period
+3. Runs `restic backup` — snapshots config/metadata dirs and DB dumps to B2 (and optionally to local NAS)
+4. Runs `restic forget --prune` — keeps daily/weekly/monthly snapshots per retention policy
+5. Restarts containers in dependency order
 
-**Scripts and config:**
+### Retention policy
+
+```
+--keep-daily  <BACKUP_RETENTION days>
+--keep-weekly 4
+--keep-monthly 3
+```
+
+### Extra paths
+
+Each group has an `EXTRA_PATHS_*` variable in `backup.conf` — a space-separated list of additional directories included in that group's snapshot. Set during install or edit the file directly at any time:
+
+```bash
+# In ${DOCKERPATH}/backup/backup.conf
+EXTRA_PATHS_CLOUD="/mnt/nas/documents /home/user/important"
+EXTRA_PATHS_ARR=""
+EXTRA_PATHS_MEDIA=""
+```
+
+### Scripts and config
+
 - `${DOCKERPATH}/backup/backup-cloud.sh`
 - `${DOCKERPATH}/backup/backup-arr.sh`
 - `${DOCKERPATH}/backup/backup-media.sh`
-- `${DOCKERPATH}/backup/backup.conf` — generated config with paths and DB passwords (mode 600)
+- `${DOCKERPATH}/backup/backup.conf` — generated config with paths, DB passwords, and B2 credentials (mode 600)
 
 **Logs:** `${BACKUPPATH}/logs/{cloud,arr,media}.log`
 
-> Bulk storage paths (Immich upload, Seafile storage) on a NAS are not included in the tar — back those up separately via your NAS backup solution (e.g. HBS3 to Backblaze).
+### Recovery
+
+```bash
+export B2_ACCOUNT_ID="your-key-id"
+export B2_ACCOUNT_KEY="your-app-key"
+export RESTIC_PASSWORD="your-repo-password"
+
+# List snapshots
+restic -r b2:mybucket:/cloud snapshots
+
+# Restore latest snapshot
+restic -r b2:mybucket:/cloud restore latest --target /tmp/restore
+
+# Restore a single container's config
+restic -r b2:mybucket:/cloud restore latest --target /tmp/restore \
+    --include /opt/docker/immich
+
+# Restore from local NAS repo (faster — no B2 download)
+restic -r /mnt/backups/cloud restore latest --target /tmp/restore
+```
+
+DB dump `.sql` files are included alongside the config dirs. Restore them with:
+
+```bash
+# Immich (Postgres)
+docker exec -i immich_postgres psql -U immich < /tmp/restore/immich_db_TIMESTAMP.sql
+
+# Seafile or Nextcloud (MariaDB)
+docker exec -i seafile-db mysql -uroot -p < /tmp/restore/seafile_db_TIMESTAMP.sql
+```
+
+### Backrest — snapshot browser
+
+Backrest (`ghcr.io/garethgeorge/backrest`) is an optional web UI for browsing snapshots, triggering ad-hoc restores, and monitoring backup health. It runs on port **9898**.
+
+After install, open `http://server:9898` and add repos via the web UI using the same B2 credentials stored in `backup.conf`.
+
+> Bulk storage paths (Immich upload, Seafile storage) are not included in snapshots — back those up separately via your NAS backup solution.
 
 ---
 
