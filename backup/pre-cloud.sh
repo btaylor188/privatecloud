@@ -5,7 +5,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/backup.conf"
 
-DUMP_DIR="${DOCKERPATH}/backup/dumps"
+DUMP_DIR="${DOCKERPATH}/cloud/backup/dumps"
 mkdir -p "$DUMP_DIR"
 
 is_running() { docker ps -q --filter "name=^${1}$" | grep -q .; }

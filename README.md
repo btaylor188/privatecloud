@@ -130,7 +130,7 @@ Installed to `${DOCKERPATH}/backup/` and mounted into the Backrest container at 
 | `${DOCKERPATH}/backup/pre-media.sh` | Stop Media containers |
 | `${DOCKERPATH}/backup/post-media.sh` | Restart Media containers |
 
-DB dumps are written to `${DOCKERPATH}/backup/dumps/` — include this path in your Backrest cloud plan's source paths so dumps are captured in the snapshot.
+DB dumps are written to `${DOCKERPATH}/cloud/backup/dumps/` — they are automatically included when Backrest snapshots `${DOCKERPATH}/cloud`.
 
 `backup.conf` (mode 600) holds only the DB passwords needed by `pre-cloud.sh`.
 
@@ -138,12 +138,13 @@ DB dumps are written to `${DOCKERPATH}/backup/dumps/` — include this path in y
 
 1. Open `http://server:9898`
 2. Add a repo (B2, local path, or both) with your credentials and restic password
-3. Create a plan for each group, set source paths and schedule
+3. Create a plan for each group with the following source paths and schedule:
+   - **Cloud plan:** `${DOCKERPATH}/cloud`
+   - **ARR plan:** `${DOCKERPATH}/arr`
+   - **Media plan:** `${DOCKERPATH}/media`
 4. Add hook commands:
    - **Before backup:** `${DOCKERPATH}/backup/pre-<group>.sh`
    - **After backup:** `${DOCKERPATH}/backup/post-<group>.sh`
-
-For the Cloud plan, include `${DOCKERPATH}/backup/dumps` as a source path.
 
 ### Recovery
 
@@ -157,7 +158,7 @@ export RESTIC_PASSWORD="your-repo-password"
 restic -r b2:mybucket:/cloud snapshots
 restic -r b2:mybucket:/cloud restore latest --target /tmp/restore
 restic -r b2:mybucket:/cloud restore latest --target /tmp/restore \
-    --include /opt/docker/immich
+    --include /opt/docker/cloud/immich
 ```
 
 Restore DB dumps:
@@ -183,7 +184,7 @@ All services start unchecked — select only what you need. Cloudflared is alway
 Uses [Gluetun](https://github.com/qdm12/gluetun) as a VPN sidecar — works with any WireGuard-compatible provider (Mullvad, ProtonVPN, NordVPN, etc.). Before starting:
 
 1. Download a WireGuard `.conf` file from your VPN provider's dashboard
-2. Place it at `${DOCKERPATH}/gluetun/wireguard/wg0.conf`
+2. Place it at `${DOCKERPATH}/arr/gluetun/wireguard/wg0.conf`
 3. Start the stack — qBittorrent routes all traffic through the tunnel with a killswitch
 
 ### Seerr
@@ -196,7 +197,7 @@ Self-hosted Google Photos alternative. Deploys four containers: `immich-server`,
 Self-hosted Dropbox alternative. Deploys three containers: `seafile`, `seafile-db` (MariaDB), and `seafile-memcached`. The server hostname is used to generate download links — set it to your domain or server IP.
 
 #### Post-install: HTTPS configuration
-If Seafile is served over HTTPS (e.g. behind a Cloudflare Tunnel), two config files need to be updated after the first run. They live at `${DOCKERPATH}/seafile/data/seafile/conf/`.
+If Seafile is served over HTTPS (e.g. behind a Cloudflare Tunnel), two config files need to be updated after the first run. They live at `${DOCKERPATH}/cloud/seafile/data/seafile/conf/`.
 
 **`seahub_settings.py`** — change `http` to `https` on the SERVICE_URL and FILE_SERVER_ROOT lines, and add the CSRF line if it isn't there:
 
