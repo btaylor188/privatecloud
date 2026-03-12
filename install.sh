@@ -1099,19 +1099,22 @@ if is_selected backup; then
         echo "Installing restic..."
         sudo apt-get install -y restic 2>/dev/null || \
         sudo snap install restic 2>/dev/null || \
-        { curl -fsSL https://github.com/restic/restic/releases/latest/download/restic_linux_amd64.bz2 | \
-          bunzip2 | sudo tee /usr/local/bin/restic > /dev/null && sudo chmod +x /usr/local/bin/restic; }
+        { _restic_url=$(curl -fsSL https://api.github.com/repos/restic/restic/releases/latest \
+            | grep -o '"browser_download_url": *"[^"]*linux_amd64\.bz2"' \
+            | grep -o 'https://[^"]*') && \
+          curl -fsSL "$_restic_url" | bunzip2 | sudo tee /usr/local/bin/restic > /dev/null && \
+          sudo chmod +x /usr/local/bin/restic; }
     fi
 
     # Generate backup.conf with resolved values (secrets included; file is chmod 600)
     sudo tee "${DOCKERPATH}/backup/backup.conf" > /dev/null <<EOF
 BACKUPPATH="${BACKUPPATH}"
 DOCKERPATH="${DOCKERPATH}"
-IMMICH_UPLOAD_LOCATION="${IMMICH_UPLOAD_LOCATION}"
-SEAFILE_STORAGE_PATH="${SEAFILE_STORAGE_PATH}"
+IMMICH_UPLOAD_LOCATION="${IMMICH_UPLOAD_LOCATION:-}"
+SEAFILE_STORAGE_PATH="${SEAFILE_STORAGE_PATH:-}"
 RETENTION=${BACKUP_RETENTION}
-SEAFILE_DB_PASSWORD='${SEAFILE_DB_ROOT_PASSWORD}'
-NEXTCLOUD_DB_PASSWORD='${NCDBROOT}'
+SEAFILE_DB_PASSWORD='${SEAFILE_DB_ROOT_PASSWORD:-}'
+NEXTCLOUD_DB_PASSWORD='${NCDBROOT:-}'
 
 # Backblaze B2 — restic primary destination
 B2_BUCKET="${B2_BUCKET}"
