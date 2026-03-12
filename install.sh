@@ -40,14 +40,6 @@ PROCESSPATH="${PROCESSPATH:-}"
 MEDIAPATH="${MEDIAPATH:-}"
 GLUETUN_VPN_TYPE="${GLUETUN_VPN_TYPE:-wireguard}"
 BACKUPPATH="${BACKUPPATH:-}"
-BACKUP_RETENTION="${BACKUP_RETENTION:-30}"
-BACKUP_CRON_CLOUD="${BACKUP_CRON_CLOUD:-}"
-BACKUP_CRON_ARR="${BACKUP_CRON_ARR:-}"
-BACKUP_CRON_MEDIA="${BACKUP_CRON_MEDIA:-}"
-B2_BUCKET="${B2_BUCKET:-}"
-EXTRA_PATHS_CLOUD="${EXTRA_PATHS_CLOUD:-}"
-EXTRA_PATHS_ARR="${EXTRA_PATHS_ARR:-}"
-EXTRA_PATHS_MEDIA="${EXTRA_PATHS_MEDIA:-}"
 EOF
 }
 
@@ -82,7 +74,7 @@ LABELS=(
     "Seafile           File sync & share"
     "Vaultwarden       Password manager"
     "Backrest          Restic snapshot browser (port 9898)"
-    "Backup            Automated backup scripts & cron jobs"
+    "Backup            Container stop/start hooks for Backrest"
 )
 
 SVC_GROUPS=(
@@ -283,32 +275,8 @@ fi
 if is_selected backup; then
     echo ""
     echo "── Backup Settings ──"
-    ask "Backup destination path (local NAS, optional secondary repo)" BACKUPPATH "/mnt/backups"
-    ask "Retention (days)"        BACKUP_RETENTION "30"
-    echo ""
-    echo "  Backblaze B2 settings (restic primary destination):"
-    ask "B2 bucket name       " B2_BUCKET "my-privatecloud-backup"
-    echo "  B2 key ID (not saved to config):"
-    read -r B2_KEY_ID
-    echo "  B2 application key (not saved to config):"
-    read -rs B2_APP_KEY
-    echo
-    echo "  Restic repository password — used to encrypt snapshots (not saved to config):"
-    read -rs RESTIC_PASSWORD
-    echo
-    echo ""
-    echo "  Backup schedules (cron format):"
-    echo "  Cloud  = Immich, Seafile, Nextcloud, oCIS, Vaultwarden"
-    echo "  ARR    = Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Tdarr, Uptime Kuma"
-    echo "  Media  = Plex, Seerr"
-    ask "Cloud schedule " BACKUP_CRON_CLOUD  "0 2 * * 0"
-    ask "ARR schedule   " BACKUP_CRON_ARR    "0 3 * * *"
-    ask "Media schedule " BACKUP_CRON_MEDIA  "0 4 * * 0"
-    echo ""
-    echo "  Extra paths (space-separated, leave blank to skip):"
-    ask "Cloud extra paths " EXTRA_PATHS_CLOUD ""
-    ask "ARR extra paths   " EXTRA_PATHS_ARR   ""
-    ask "Media extra paths " EXTRA_PATHS_MEDIA ""
+    echo "  Hook scripts will be installed to ${DOCKERPATH}/backup/"
+    echo "  Configure repos, schedules, retention, and paths in Backrest after install."
     save_config
 fi
 
@@ -1088,80 +1056,27 @@ ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckd
 [[ -n "$ALL_ARGS" ]] && sudo docker compose -f "$SCRIPT_DIR/docker-compose.yaml" $ALL_ARGS up -d
 
 # ─────────────────────────────────────────────
-#  Configure backup scripts & cron jobs
+#  Install Backrest hook scripts
 # ─────────────────────────────────────────────
 if is_selected backup; then
     make_dir "${DOCKERPATH}/backup"
-    make_dir "${BACKUPPATH}/logs"
+    make_dir "${DOCKERPATH}/backup/dumps"
 
-    # Install restic if not already present
-    if ! command -v restic &>/dev/null; then
-        echo "Installing restic..."
-        sudo apt-get install -y restic 2>/dev/null || \
-        sudo snap install restic 2>/dev/null || \
-        { _restic_url=$(curl -fsSL https://api.github.com/repos/restic/restic/releases/latest \
-            | grep -o '"browser_download_url": *"[^"]*linux_amd64\.bz2"' \
-            | grep -o 'https://[^"]*') && \
-          curl -fsSL "$_restic_url" | bunzip2 | sudo tee /usr/local/bin/restic > /dev/null && \
-          sudo chmod +x /usr/local/bin/restic; }
-    fi
-
-    # Generate backup.conf with resolved values (secrets included; file is chmod 600)
+    # Minimal config — DB passwords for pre-cloud.sh dumps
     sudo tee "${DOCKERPATH}/backup/backup.conf" > /dev/null <<EOF
-BACKUPPATH="${BACKUPPATH}"
 DOCKERPATH="${DOCKERPATH}"
-IMMICH_UPLOAD_LOCATION="${IMMICH_UPLOAD_LOCATION:-}"
-SEAFILE_STORAGE_PATH="${SEAFILE_STORAGE_PATH:-}"
-RETENTION=${BACKUP_RETENTION}
 SEAFILE_DB_PASSWORD='${SEAFILE_DB_ROOT_PASSWORD:-}'
 NEXTCLOUD_DB_PASSWORD='${NCDBROOT:-}'
-
-# Backblaze B2 — restic primary destination
-B2_BUCKET="${B2_BUCKET}"
-B2_KEY_ID="${B2_KEY_ID}"
-B2_APP_KEY="${B2_APP_KEY}"
-RESTIC_PASSWORD="${RESTIC_PASSWORD}"
-
-# Extra paths — space-separated; edit freely to add more without reinstalling
-EXTRA_PATHS_CLOUD="${EXTRA_PATHS_CLOUD}"
-EXTRA_PATHS_ARR="${EXTRA_PATHS_ARR}"
-EXTRA_PATHS_MEDIA="${EXTRA_PATHS_MEDIA}"
 EOF
     sudo chmod 600 "${DOCKERPATH}/backup/backup.conf"
 
-    # Initialize restic repos (B2 + optional local)
-    for group in cloud arr media; do
-        export RESTIC_REPOSITORY="b2:${B2_BUCKET}:/${group}"
-        export RESTIC_PASSWORD="${RESTIC_PASSWORD}"
-        export B2_ACCOUNT_ID="${B2_KEY_ID}"
-        export B2_ACCOUNT_KEY="${B2_APP_KEY}"
-        echo "Initializing restic repo: ${RESTIC_REPOSITORY}"
-        restic snapshots &>/dev/null || restic init
-        if [[ -n "${BACKUPPATH}" ]]; then
-            make_dir "${BACKUPPATH}/${group}"
-            restic -r "${BACKUPPATH}/${group}" snapshots &>/dev/null || \
-            restic -r "${BACKUPPATH}/${group}" init
-        fi
-    done
-    unset RESTIC_REPOSITORY B2_ACCOUNT_ID B2_ACCOUNT_KEY
-
-    # Copy scripts from repo and make executable
-    for script in backup-cloud.sh backup-arr.sh backup-media.sh; do
+    for script in pre-cloud.sh post-cloud.sh pre-arr.sh post-arr.sh pre-media.sh post-media.sh; do
         sudo cp "${SCRIPT_DIR}/backup/${script}" "${DOCKERPATH}/backup/${script}"
         sudo chmod +x "${DOCKERPATH}/backup/${script}"
     done
 
-    # Install cron jobs in root crontab (idempotent — removes old entries first)
-    TMPCRON=$(mktemp)
-    sudo crontab -l 2>/dev/null | grep -Ev 'backup-(cloud|arr|media)\.sh' > "$TMPCRON" || true
-    echo >> "$TMPCRON"  # ensure trailing newline before appending
-    [[ -n "${BACKUP_CRON_CLOUD}" ]] && echo "${BACKUP_CRON_CLOUD} ${DOCKERPATH}/backup/backup-cloud.sh" >> "$TMPCRON"
-    [[ -n "${BACKUP_CRON_ARR}" ]]   && echo "${BACKUP_CRON_ARR}   ${DOCKERPATH}/backup/backup-arr.sh"   >> "$TMPCRON"
-    [[ -n "${BACKUP_CRON_MEDIA}" ]] && echo "${BACKUP_CRON_MEDIA} ${DOCKERPATH}/backup/backup-media.sh" >> "$TMPCRON"
-    sudo crontab "$TMPCRON"
-    rm "$TMPCRON"
-
-    echo "Backup configured — scripts at ${DOCKERPATH}/backup/"
+    echo "Hook scripts installed at ${DOCKERPATH}/backup/"
+    echo "In Backrest, set hooks to: /hooks/pre-<group>.sh and /hooks/post-<group>.sh"
 fi
 
 if is_selected backrest; then
@@ -1187,6 +1102,9 @@ services:
       - ${DOCKERPATH}/backrest/config:/config
       - ${DOCKERPATH}/backrest/cache:/cache
       - ${DOCKERPATH}/backrest/tmp:/tmp
+      - ${DOCKERPATH}/backup:/hooks:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
     environment:
       - BACKREST_DATA=/data
       - BACKREST_CONFIG=/config/config.json

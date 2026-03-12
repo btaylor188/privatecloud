@@ -90,94 +90,83 @@ chmod +x install.sh
 ### Backup
 | # | Service | Notes |
 |---|---------|-------|
-| 20 | Backrest | Web UI for browsing and managing restic snapshots (port 9898) |
-| 21 | Backup | Installs restic, initializes B2 repos, and schedules backup cron jobs |
+| 20 | Backrest | Restic web UI — repos, scheduling, retention, snapshots, restores (port 9898) |
+| 21 | Backup | Installs container stop/start hook scripts called by Backrest |
 
 ---
 
 ## Backup
 
-Backups use **[restic](https://restic.net/)** with **Backblaze B2** as the primary destination. Restic provides AES-256 encryption, deduplication, snapshot versioning, and fine-grained retention policies. The local NAS path (`BACKUPPATH`) is retained as an optional secondary local repo for fast restores.
+Backups use **[Backrest](https://github.com/garethgeorge/backrest)** as the primary interface to **[restic](https://restic.net/)**. Backrest handles everything restic-related: repo configuration, scheduling, retention policies, snapshot browsing, and restores. The installer only generates lightweight hook scripts that Backrest calls before and after each backup to stop containers and dump databases.
+
+### Architecture
+
+```
+Backrest (web UI) → pre hook → restic backup → post hook
+                        ↓                           ↓
+                 stop containers            restart containers
+                 dump databases
+```
 
 ### Backup groups
 
-| Group | Containers | Default schedule |
-|-------|-----------|-----------------|
-| Cloud | Immich, Seafile, Nextcloud, oCIS, Vaultwarden | `0 2 * * 0` (Sun 2am) |
-| ARR | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Tdarr, Uptime Kuma | `0 3 * * *` (daily 3am) |
-| Media | Plex, Seerr | `0 4 * * 0` (Sun 4am) |
+| Group | Containers |
+|-------|-----------|
+| Cloud | Immich, Seafile, Nextcloud, oCIS, Vaultwarden |
+| ARR | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Tdarr, Uptime Kuma |
+| Media | Plex, Seerr |
 
-**What each backup does:**
-1. Dumps databases into a temp directory (Immich Postgres, Seafile MariaDB, Nextcloud MariaDB)
-2. Stops the relevant containers
-3. Runs `restic backup` — snapshots config/metadata dirs and DB dumps to B2 (and optionally to local NAS)
-4. Runs `restic forget --prune` — keeps daily/weekly/monthly snapshots per retention policy
-5. Restarts containers in dependency order
+Schedules, retention policies, source paths, and repos are all configured in the Backrest web UI after install.
 
-### Retention policy
+### Hook scripts
 
-```
---keep-daily  <BACKUP_RETENTION days>
---keep-weekly 4
---keep-monthly 3
-```
+Installed to `${DOCKERPATH}/backup/` and mounted into the Backrest container at `/hooks/`:
 
-### Extra paths
+| Script | Purpose |
+|--------|---------|
+| `/hooks/pre-cloud.sh` | Dump DBs, stop Cloud containers |
+| `/hooks/post-cloud.sh` | Restart Cloud containers in dependency order |
+| `/hooks/pre-arr.sh` | Stop ARR containers |
+| `/hooks/post-arr.sh` | Restart ARR containers |
+| `/hooks/pre-media.sh` | Stop Media containers |
+| `/hooks/post-media.sh` | Restart Media containers |
 
-Each group has an `EXTRA_PATHS_*` variable in `backup.conf` — a space-separated list of additional directories included in that group's snapshot. Set during install or edit the file directly at any time:
+DB dumps are written to `${DOCKERPATH}/backup/dumps/` — include this path in your Backrest cloud plan's source paths so dumps are captured in the snapshot.
 
-```bash
-# In ${DOCKERPATH}/backup/backup.conf
-EXTRA_PATHS_CLOUD="/mnt/nas/documents /home/user/important"
-EXTRA_PATHS_ARR=""
-EXTRA_PATHS_MEDIA=""
-```
+`backup.conf` (mode 600) holds only the DB passwords needed by `pre-cloud.sh`.
 
-### Scripts and config
+### Backrest setup (post-install)
 
-- `${DOCKERPATH}/backup/backup-cloud.sh`
-- `${DOCKERPATH}/backup/backup-arr.sh`
-- `${DOCKERPATH}/backup/backup-media.sh`
-- `${DOCKERPATH}/backup/backup.conf` — generated config with paths, DB passwords, and B2 credentials (mode 600)
+1. Open `http://server:9898`
+2. Add a repo (B2, local path, or both) with your credentials and restic password
+3. Create a plan for each group, set source paths and schedule
+4. Add hook commands:
+   - **Before backup:** `/hooks/pre-<group>.sh`
+   - **After backup:** `/hooks/post-<group>.sh`
 
-**Logs:** `${BACKUPPATH}/logs/{cloud,arr,media}.log`
+For the Cloud plan, include `${DOCKERPATH}/backup/dumps` as a source path.
 
 ### Recovery
+
+Use the Backrest UI to browse snapshots and trigger restores, or use the restic CLI directly:
 
 ```bash
 export B2_ACCOUNT_ID="your-key-id"
 export B2_ACCOUNT_KEY="your-app-key"
 export RESTIC_PASSWORD="your-repo-password"
 
-# List snapshots
 restic -r b2:mybucket:/cloud snapshots
-
-# Restore latest snapshot
 restic -r b2:mybucket:/cloud restore latest --target /tmp/restore
-
-# Restore a single container's config
 restic -r b2:mybucket:/cloud restore latest --target /tmp/restore \
     --include /opt/docker/immich
-
-# Restore from local NAS repo (faster — no B2 download)
-restic -r /mnt/backups/cloud restore latest --target /tmp/restore
 ```
 
-DB dump `.sql` files are included alongside the config dirs. Restore them with:
+Restore DB dumps:
 
 ```bash
-# Immich (Postgres)
-docker exec -i immich_postgres psql -U immich < /tmp/restore/immich_db_TIMESTAMP.sql
-
-# Seafile or Nextcloud (MariaDB)
-docker exec -i seafile-db mysql -uroot -p < /tmp/restore/seafile_db_TIMESTAMP.sql
+docker exec -i immich_postgres psql -U immich < /tmp/restore/.../immich_db_TIMESTAMP.sql
+docker exec -i seafile-db mysql -uroot -p < /tmp/restore/.../seafile_db_TIMESTAMP.sql
 ```
-
-### Backrest — snapshot browser
-
-Backrest (`ghcr.io/garethgeorge/backrest`) is an optional web UI for browsing snapshots, triggering ad-hoc restores, and monitoring backup health. It runs on port **9898**.
-
-After install, open `http://server:9898` and add repos via the web UI using the same B2 credentials stored in `backup.conf`.
 
 > Bulk storage paths (Immich upload, Seafile storage) are not included in snapshots — back those up separately via your NAS backup solution.
 
