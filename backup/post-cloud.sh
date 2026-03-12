@@ -5,7 +5,7 @@
 echo "=== post-cloud: restarting containers ==="
 
 # DBs and independent services first
-for c in immich_postgres seafile-db nextcloud-db ocis vaultwarden; do
+for c in immich_postgres seafile-db nextcloud-db ocis vaultwarden backrest; do
     docker start "$c" 2>/dev/null && echo "Started $c" || true
 done
 

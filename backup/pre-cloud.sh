@@ -34,7 +34,7 @@ echo "=== pre-cloud: stopping containers ==="
 for c in immich_server immich_machine_learning immich_redis immich_postgres \
           seafile seafile-memcached seafile-db \
           nextcloud nextcloud-db \
-          ocis vaultwarden; do
+          ocis vaultwarden backrest; do
     is_running "$c" && echo "Stopping $c" && docker stop "$c"
 done
 
