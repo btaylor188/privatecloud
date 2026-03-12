@@ -40,31 +40,42 @@ for p in ${EXTRA_PATHS_ARR}; do
     [[ -d "$p" ]] && DIRS+=("$p")
 done
 
-# Backup to B2
-export B2_ACCOUNT_ID="${B2_KEY_ID}"
-export B2_ACCOUNT_KEY="${B2_APP_KEY}"
-export RESTIC_PASSWORD
-export RESTIC_REPOSITORY="b2:${B2_BUCKET}:/arr"
+if [[ ${#DIRS[@]} -eq 0 ]]; then
+    log "No directories found to back up — skipping"
+else
+    # Backup to B2
+    export B2_ACCOUNT_ID="${B2_KEY_ID}"
+    export B2_ACCOUNT_KEY="${B2_APP_KEY}"
+    export RESTIC_PASSWORD
+    export RESTIC_REPOSITORY="b2:${B2_BUCKET}:/arr"
 
-log "Running restic backup to B2 (${RESTIC_REPOSITORY})"
-restic backup "${DIRS[@]}" 2>>"$LOG"
+    log "Initializing B2 repo if needed"
+    restic snapshots >>"$LOG" 2>&1 || restic init >>"$LOG" 2>&1
 
-log "Running restic forget/prune on B2"
-restic forget \
-    --keep-daily  "${RETENTION}" \
-    --keep-weekly 4 \
-    --keep-monthly 3 \
-    --prune 2>>"$LOG"
+    log "Running restic backup to B2 (${RESTIC_REPOSITORY})"
+    restic backup "${DIRS[@]}" >>"$LOG" 2>&1
 
-# Also backup to local NAS repo if BACKUPPATH is set
-if [[ -n "${BACKUPPATH}" ]]; then
-    log "Running restic backup to local repo (${BACKUPPATH}/arr)"
-    restic -r "${BACKUPPATH}/arr" backup "${DIRS[@]}" 2>>"$LOG"
-    restic -r "${BACKUPPATH}/arr" forget \
+    log "Running restic forget/prune on B2"
+    restic forget \
         --keep-daily  "${RETENTION}" \
         --keep-weekly 4 \
         --keep-monthly 3 \
-        --prune 2>>"$LOG"
+        --prune >>"$LOG" 2>&1
+
+    # Also backup to local NAS repo if BACKUPPATH is set
+    if [[ -n "${BACKUPPATH}" ]]; then
+        log "Initializing local repo if needed (${BACKUPPATH}/arr)"
+        restic -r "${BACKUPPATH}/arr" snapshots >>"$LOG" 2>&1 || \
+            restic -r "${BACKUPPATH}/arr" init >>"$LOG" 2>&1
+
+        log "Running restic backup to local repo (${BACKUPPATH}/arr)"
+        restic -r "${BACKUPPATH}/arr" backup "${DIRS[@]}" >>"$LOG" 2>&1
+        restic -r "${BACKUPPATH}/arr" forget \
+            --keep-daily  "${RETENTION}" \
+            --keep-weekly 4 \
+            --keep-monthly 3 \
+            --prune >>"$LOG" 2>&1
+    fi
 fi
 
 log "Restarting containers"
