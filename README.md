@@ -87,6 +87,40 @@ chmod +x install.sh
 | 19 | Seafile | 8090 | Self-hosted file sync & share; DB and admin credentials required |
 | 20 | Vaultwarden | 8222 | Bitwarden-compatible password manager |
 
+### Backup
+| # | Service | Notes |
+|---|---------|-------|
+| 21 | Backup | Generates backup scripts and cron jobs for three service groups |
+
+---
+
+## Backup
+
+When selected, the installer prompts for a backup destination and retention period, then asks for a cron schedule for each of three groups:
+
+| Group | Containers | Default schedule |
+|-------|-----------|-----------------|
+| Cloud | Immich, Seafile, Nextcloud, oCIS, Vaultwarden | `0 2 * * 0` (Sun 2am) |
+| ARR | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Tdarr, Uptime Kuma | `0 3 * * *` (daily 3am) |
+| Media | Plex, Seerr | `0 4 * * 0` (Sun 4am) |
+
+**What each backup does:**
+1. Dumps databases live (Immich Postgres, Seafile MariaDB, Nextcloud MariaDB) before stopping containers
+2. Stops the relevant containers
+3. Tars the config/metadata directories under `DOCKERPATH`
+4. Restarts containers in dependency order
+5. Deletes archives older than the retention period
+
+**Scripts and config:**
+- `${DOCKERPATH}/backup/backup-cloud.sh`
+- `${DOCKERPATH}/backup/backup-arr.sh`
+- `${DOCKERPATH}/backup/backup-media.sh`
+- `${DOCKERPATH}/backup/backup.conf` — generated config with paths and DB passwords (mode 600)
+
+**Logs:** `${BACKUPPATH}/logs/{cloud,arr,media}.log`
+
+> Bulk storage paths (Immich upload, Seafile storage) on a NAS are not included in the tar — back those up separately via your NAS backup solution (e.g. HBS3 to Backblaze).
+
 ---
 
 ## Default Selections

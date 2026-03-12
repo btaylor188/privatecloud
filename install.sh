@@ -39,6 +39,11 @@ DOMAINNAME="${DOMAINNAME:-}"
 PROCESSPATH="${PROCESSPATH:-}"
 MEDIAPATH="${MEDIAPATH:-}"
 GLUETUN_VPN_TYPE="${GLUETUN_VPN_TYPE:-wireguard}"
+BACKUPPATH="${BACKUPPATH:-}"
+BACKUP_RETENTION="${BACKUP_RETENTION:-30}"
+BACKUP_CRON_CLOUD="${BACKUP_CRON_CLOUD:-}"
+BACKUP_CRON_ARR="${BACKUP_CRON_ARR:-}"
+BACKUP_CRON_MEDIA="${BACKUP_CRON_MEDIA:-}"
 EOF
 }
 
@@ -51,7 +56,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile vaultwarden)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile vaultwarden backup)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -72,6 +77,7 @@ LABELS=(
     "Immich            Photo & video backup"
     "Seafile           File sync & share"
     "Vaultwarden       Password manager"
+    "Backup            Automated backup scripts & cron jobs"
 )
 
 SVC_GROUPS=(
@@ -80,10 +86,11 @@ SVC_GROUPS=(
     "*ARR!" "*ARR!" "*ARR!" "*ARR!"
     "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
+    "Backup"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0 0)
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0 0  0)
 
 show_menu() {
     echo ""
@@ -265,6 +272,22 @@ if is_selected seafile; then
     echo "Seafile admin password:"
     read -rs SEAFILE_ADMIN_PASSWORD
     echo
+fi
+
+if is_selected backup; then
+    echo ""
+    echo "── Backup Settings ──"
+    ask "Backup destination path" BACKUPPATH "/mnt/backups"
+    ask "Retention (days)"        BACKUP_RETENTION "30"
+    echo ""
+    echo "  Backup schedules (cron format):"
+    echo "  Cloud  = Immich, Seafile, Nextcloud, oCIS, Vaultwarden"
+    echo "  ARR    = Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Tdarr, Uptime Kuma"
+    echo "  Media  = Plex, Seerr"
+    ask "Cloud schedule " BACKUP_CRON_CLOUD  "0 2 * * 0"
+    ask "ARR schedule   " BACKUP_CRON_ARR    "0 3 * * *"
+    ask "Media schedule " BACKUP_CRON_MEDIA  "0 4 * * 0"
+    save_config
 fi
 
 # ─────────────────────────────────────────────
@@ -1041,6 +1064,46 @@ ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckd
 
 [[ -n "$ALL_ARGS" ]] && sudo docker compose -f "$SCRIPT_DIR/docker-compose.yaml" $ALL_ARGS up -d
 
+# ─────────────────────────────────────────────
+#  Configure backup scripts & cron jobs
+# ─────────────────────────────────────────────
+if is_selected backup; then
+    make_dir "${DOCKERPATH}/backup"
+    make_dir "${BACKUPPATH}/cloud"
+    make_dir "${BACKUPPATH}/arr"
+    make_dir "${BACKUPPATH}/media"
+    make_dir "${BACKUPPATH}/logs"
+
+    # Generate backup.conf with resolved values
+    sudo tee "${DOCKERPATH}/backup/backup.conf" > /dev/null <<EOF
+BACKUPPATH="${BACKUPPATH}"
+DOCKERPATH="${DOCKERPATH}"
+IMMICH_UPLOAD_LOCATION="${IMMICH_UPLOAD_LOCATION}"
+SEAFILE_STORAGE_PATH="${SEAFILE_STORAGE_PATH}"
+RETENTION=${BACKUP_RETENTION}
+SEAFILE_DB_PASSWORD='${SEAFILE_DB_ROOT_PASSWORD}'
+NEXTCLOUD_DB_PASSWORD='${NCDBROOT}'
+EOF
+    sudo chmod 600 "${DOCKERPATH}/backup/backup.conf"
+
+    # Copy scripts from repo and make executable
+    for script in backup-cloud.sh backup-arr.sh backup-media.sh; do
+        sudo cp "${SCRIPT_DIR}/backup/${script}" "${DOCKERPATH}/backup/${script}"
+        sudo chmod +x "${DOCKERPATH}/backup/${script}"
+    done
+
+    # Install cron jobs in root crontab (idempotent — removes old entries first)
+    TMPCRON=$(mktemp)
+    sudo crontab -l 2>/dev/null | grep -Ev 'backup-(cloud|arr|media)\.sh' > "$TMPCRON" || true
+    [[ -n "${BACKUP_CRON_CLOUD}" ]] && echo "${BACKUP_CRON_CLOUD} ${DOCKERPATH}/backup/backup-cloud.sh" >> "$TMPCRON"
+    [[ -n "${BACKUP_CRON_ARR}" ]]   && echo "${BACKUP_CRON_ARR}   ${DOCKERPATH}/backup/backup-arr.sh"   >> "$TMPCRON"
+    [[ -n "${BACKUP_CRON_MEDIA}" ]] && echo "${BACKUP_CRON_MEDIA} ${DOCKERPATH}/backup/backup-media.sh" >> "$TMPCRON"
+    sudo crontab "$TMPCRON"
+    rm "$TMPCRON"
+
+    echo "Backup configured — scripts at ${DOCKERPATH}/backup/"
+fi
+
 LOCAL_IP=$(hostname -I | awk '{print $1}')
 
 echo ""
@@ -1080,6 +1143,7 @@ is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
 is_selected vaultwarden  && print_url "Vaultwarden"    "http://${LOCAL_IP}:8222"
 is_selected duckdns      && print_url "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
+is_selected backup       && print_url "Backup"         "scripts: ${DOCKERPATH}/backup/  logs: ${BACKUPPATH}/logs/"
 print_url "Cloudflared"    "(no UI — tunnel active)"
 
 echo "└──────────────────────────────────────────────────────────────┘"
