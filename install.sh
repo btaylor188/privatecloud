@@ -1079,7 +1079,8 @@ EOF
         echo "Installing restic..."
         sudo apt-get install -y restic 2>/dev/null || \
         sudo snap install restic 2>/dev/null || \
-        { _restic_url=$(curl -fsSL https://api.github.com/repos/restic/restic/releases/latest \
+        { sudo apt-get install -y bzip2 2>/dev/null || true
+          _restic_url=$(curl -fsSL https://api.github.com/repos/restic/restic/releases/latest \
             | grep -o '"browser_download_url": *"[^"]*linux_amd64\.bz2"' \
             | grep -o 'https://[^"]*') && \
           curl -fsSL "$_restic_url" | bunzip2 | sudo tee /usr/local/bin/restic > /dev/null && \
