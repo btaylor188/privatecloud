@@ -557,7 +557,7 @@ services:
       - ${DOCKERPATH}/cloudservices/backrest/config:/config
       - ${DOCKERPATH}/cloudservices/backrest/cache:/cache
       - ${DOCKERPATH}/cloudservices/backrest/tmp:/tmp
-      - ${DOCKERPATH}:${DOCKERPATH}:ro
+      - ${DOCKERPATH}:${DOCKERPATH}
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
     environment:
