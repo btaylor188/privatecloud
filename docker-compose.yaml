@@ -559,7 +559,7 @@ services:
       - ${DOCKERPATH}/cloudservices/backrest/tmp:/tmp
       - ${DOCKERPATH}:${DOCKERPATH}
       - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker:ro
+      - /usr/local/bin/docker-alpine:/usr/bin/docker:ro
     environment:
       - BACKREST_DATA=/data
       - BACKREST_CONFIG=/config/config.json
