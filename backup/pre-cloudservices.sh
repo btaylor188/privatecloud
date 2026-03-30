@@ -10,7 +10,7 @@ source "${SCRIPT_DIR}/backup.conf"
 DUMP_DIR="${DOCKERPATH}/cloudservices/backup/dumps"
 mkdir -p "$DUMP_DIR"
 
-is_running() { docker ps -q --filter "name=^${1}$" | grep -q .; }
+is_running() { docker ps --format '{{.Names}}' | grep -qx "$1"; }
 
 echo "=== pre-cloudservices: dumping databases ==="
 
