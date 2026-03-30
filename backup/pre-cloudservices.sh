@@ -12,6 +12,9 @@ mkdir -p "$DUMP_DIR"
 
 is_running() { docker ps --format '{{.Names}}' | grep -qx "$1"; }
 
+echo "=== pre-cloudservices: cleaning old dumps ==="
+find "$DUMP_DIR" -name "*.sql" -mtime +2 -delete
+
 echo "=== pre-cloudservices: dumping databases ==="
 
 if is_running immich_postgres; then
