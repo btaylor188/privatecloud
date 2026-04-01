@@ -415,7 +415,7 @@ if is_selected readarr && [[ ! -f "${DOCKERPATH}/mediaserver/readarr/config.xml"
   <LaunchBrowser>True</LaunchBrowser>
   <ApiKey>${READARR_API_KEY}</ApiKey>
   <AuthenticationMethod>External</AuthenticationMethod>
-  <Branch>develop</Branch>
+  <Branch>master</Branch>
   <LogLevel>info</LogLevel>
   <UrlBase></UrlBase>
   <UpdateMechanism>Docker</UpdateMechanism>
@@ -860,7 +860,7 @@ networks:
 services:
   readarr:
     container_name: readarr
-    image: lscr.io/linuxserver/readarr:develop
+    image: lscr.io/linuxserver/readarr:latest
     ports:
       - 8787:8787
     environment:
