@@ -917,7 +917,7 @@ services:
     container_name: audiobookshelf
     image: ghcr.io/advplyr/audiobookshelf:latest
     ports:
-      - 13378:13378
+      - 13378:80
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
