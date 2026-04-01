@@ -184,7 +184,7 @@ if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected
     make_dir "$MEDIAPATH"
 fi
 
-if is_selected calibre-web || is_selected audiobookshelf; then
+if is_selected lazylibrarian || is_selected calibre-web || is_selected audiobookshelf; then
     ask "Path for books & audiobooks" BOOKSPATH "${MEDIAPATH:-/mnt/media}/books"
     make_dir "$BOOKSPATH"
 fi
