@@ -40,6 +40,7 @@ PROCESSPATH="${PROCESSPATH:-}"
 MEDIAPATH="${MEDIAPATH:-}"
 GLUETUN_VPN_TYPE="${GLUETUN_VPN_TYPE:-wireguard}"
 BACKUPPATH="${BACKUPPATH:-}"
+BOOKSPATH="${BOOKSPATH:-}"
 EOF
 }
 
@@ -52,7 +53,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr nextcloud ocis immich seafile vaultwarden backup)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr readarr calibre-web audiobookshelf nextcloud ocis immich seafile vaultwarden backup)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -68,6 +69,9 @@ LABELS=(
     "Tdarr             Media transcoding"
     "Plex              Media server"
     "Seerr             Media requests"
+    "Readarr           Book & audiobook automation"
+    "Calibre-Web       Ebook library & reader"
+    "Audiobookshelf    Audiobook & podcast server"
     "Nextcloud         File storage"
     "oCIS              ownCloud Infinite Scale"
     "Immich            Photo & video backup"
@@ -80,13 +84,13 @@ SVC_GROUPS=(
     "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
     "Downloaders" "Downloaders"
     "*ARR!" "*ARR!" "*ARR!" "*ARR!"
-    "Media Server" "Media Server"
+    "Media Server" "Media Server" "Media Server" "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
     "Backup"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0 0 0  0)
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0  0 0 0 0 0  0)
 
 show_menu() {
     echo ""
@@ -170,14 +174,19 @@ if is_selected duckdns || is_selected speedtest; then
     ask "Domain name" DOMAINNAME
 fi
 
-if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected qbittorrentvpn; then
+if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected qbittorrentvpn || is_selected readarr; then
     ask "Path for temp processing" PROCESSPATH "/opt/processing"
     make_dir "$PROCESSPATH"
 fi
 
-if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected plex || is_selected qbittorrentvpn; then
+if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected plex || is_selected qbittorrentvpn || is_selected readarr; then
     ask "Path for media" MEDIAPATH "/mnt/media"
     make_dir "$MEDIAPATH"
+fi
+
+if is_selected calibre-web || is_selected audiobookshelf; then
+    ask "Path for books & audiobooks" BOOKSPATH "${MEDIAPATH:-/mnt/media}/books"
+    make_dir "$BOOKSPATH"
 fi
 
 save_config
@@ -303,6 +312,7 @@ SEAFILE_STORAGE_PATH=${SEAFILE_STORAGE_PATH:-${DOCKERPATH}/cloudservices/seafile
 SEAFILE_DB_ROOT_PASSWORD=${SEAFILE_DB_ROOT_PASSWORD:-}
 SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL:-}
 SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD:-}
+BOOKSPATH=${BOOKSPATH:-${MEDIAPATH:-/mnt/media}/books}
 TZ=${TZ}
 PUID=${PUID}
 PGID=${PGID}
@@ -391,6 +401,29 @@ if is_selected prowlarr && [[ ! -f "${DOCKERPATH}/mediaserver/prowlarr/config.xm
 </Config>
 EOF
     sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/prowlarr/config.xml"
+fi
+
+if is_selected readarr && [[ ! -f "${DOCKERPATH}/mediaserver/readarr/config.xml" ]]; then
+    make_dir "${DOCKERPATH}/mediaserver/readarr"
+    READARR_API_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 32)
+    sudo tee "${DOCKERPATH}/mediaserver/readarr/config.xml" > /dev/null <<EOF
+<Config>
+  <BindAddress>*</BindAddress>
+  <Port>8787</Port>
+  <SslPort>8788</SslPort>
+  <EnableSsl>False</EnableSsl>
+  <LaunchBrowser>True</LaunchBrowser>
+  <ApiKey>${READARR_API_KEY}</ApiKey>
+  <AuthenticationMethod>External</AuthenticationMethod>
+  <Branch>develop</Branch>
+  <LogLevel>info</LogLevel>
+  <UrlBase></UrlBase>
+  <UpdateMechanism>Docker</UpdateMechanism>
+  <AnalyticsEnabled>True</AnalyticsEnabled>
+  <InstanceName>Readarr</InstanceName>
+</Config>
+EOF
+    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/readarr/config.xml"
 fi
 
 if is_selected qbittorrentvpn && [[ ! -f "${DOCKERPATH}/mediaserver/qbittorrent/qBittorrent/qBittorrent.conf" ]]; then
@@ -817,6 +850,88 @@ services:
 EOF
 fi
 
+if is_selected readarr; then
+    make_dir "${DOCKERPATH}/mediaserver/readarr"
+    cat > "${DOCKERPATH}/mediaserver/readarr/docker-compose.yaml" <<EOF
+networks:
+  internal:
+    external: true
+
+services:
+  readarr:
+    container_name: readarr
+    image: lscr.io/linuxserver/readarr:develop
+    ports:
+      - 8787:8787
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/readarr:/config
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
+    networks:
+      - internal
+    restart: always
+EOF
+fi
+
+if is_selected calibre-web; then
+    make_dir "${DOCKERPATH}/mediaserver/calibre-web"
+    cat > "${DOCKERPATH}/mediaserver/calibre-web/docker-compose.yaml" <<EOF
+networks:
+  internal:
+    external: true
+
+services:
+  calibre-web:
+    container_name: calibre-web
+    image: lscr.io/linuxserver/calibre-web:latest
+    ports:
+      - 8083:8083
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - DOCKER_MODS=linuxserver/mods:universal-calibre
+    volumes:
+      - ${DOCKERPATH}/mediaserver/calibre-web:/config
+      - ${BOOKSPATH}:/books
+    networks:
+      - internal
+    restart: unless-stopped
+EOF
+fi
+
+if is_selected audiobookshelf; then
+    make_dir "${DOCKERPATH}/mediaserver/audiobookshelf/config"
+    make_dir "${DOCKERPATH}/mediaserver/audiobookshelf/metadata"
+    cat > "${DOCKERPATH}/mediaserver/audiobookshelf/docker-compose.yaml" <<EOF
+networks:
+  internal:
+    external: true
+
+services:
+  audiobookshelf:
+    container_name: audiobookshelf
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    ports:
+      - 13378:13378
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/audiobookshelf/config:/config
+      - ${DOCKERPATH}/mediaserver/audiobookshelf/metadata:/metadata
+      - ${BOOKSPATH}:/audiobooks
+    networks:
+      - internal
+    restart: unless-stopped
+EOF
+fi
+
 if is_selected nextcloud; then
     make_dir "${DOCKERPATH}/cloudservices/nextcloud"
     cat > "${DOCKERPATH}/cloudservices/nextcloud/docker-compose.yaml" <<EOF
@@ -1047,7 +1162,7 @@ sudo docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q '^portainer$' || _
 ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckdns uptime-kuma speedtest \
                         nzbget qbittorrentvpn \
                         prowlarr sonarr radarr tdarr \
-                        plex seerr \
+                        plex seerr readarr calibre-web audiobookshelf \
                         nextcloud ocis immich seafile vaultwarden)"
 # Backup includes the backrest Docker service
 is_selected backup && ALL_ARGS="$ALL_ARGS --profile backrest"
@@ -1150,6 +1265,9 @@ is_selected radarr       && print_url "Radarr"         "http://${LOCAL_IP}:7878"
 is_selected tdarr        && print_url "Tdarr"          "http://${LOCAL_IP}:8265"
 is_selected plex         && print_url "Plex"           "http://${LOCAL_IP}:32400/web"
 is_selected seerr        && print_url "Seerr"           "http://${LOCAL_IP}:5055"
+is_selected readarr      && print_url "Readarr"         "http://${LOCAL_IP}:8787"
+is_selected calibre-web  && print_url "Calibre-Web"     "http://${LOCAL_IP}:8083"
+is_selected audiobookshelf && print_url "Audiobookshelf" "http://${LOCAL_IP}:13378"
 is_selected nextcloud    && print_url "Nextcloud"      "http://${LOCAL_IP}:8087"
 is_selected ocis         && print_url "oCIS"           "${OCIS_URL}"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"

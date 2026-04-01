@@ -365,6 +365,66 @@ services:
     labels:
       - wud.watch=true
 
+  readarr:
+    container_name: readarr
+    profiles: [readarr]
+    image: lscr.io/linuxserver/readarr:develop
+    ports:
+      - 8787:8787
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/readarr:/config
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
+    networks:
+      - internal
+    restart: always
+    labels:
+      - wud.watch=true
+
+  calibre-web:
+    container_name: calibre-web
+    profiles: [calibre-web]
+    image: lscr.io/linuxserver/calibre-web:latest
+    ports:
+      - 8083:8083
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - DOCKER_MODS=linuxserver/mods:universal-calibre
+    volumes:
+      - ${DOCKERPATH}/mediaserver/calibre-web:/config
+      - ${BOOKSPATH}:/books
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+
+  audiobookshelf:
+    container_name: audiobookshelf
+    profiles: [audiobookshelf]
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    ports:
+      - 13378:13378
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/audiobookshelf/config:/config
+      - ${DOCKERPATH}/mediaserver/audiobookshelf/metadata:/metadata
+      - ${BOOKSPATH}:/audiobooks
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+
   # ── Private Cloud ─────────────────────────────────────────────────
 
   nextcloud:

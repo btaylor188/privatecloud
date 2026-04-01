@@ -77,20 +77,23 @@ chmod +x install.sh
 |---|---------|------|-------|
 | 14 | Plex | 32400 | Media server; claim token from plex.tv/claim |
 | 15 | Seerr | 5055 | Media request manager (replaces deprecated Overseerr) |
+| 16 | Readarr | 8787 | Book & audiobook automation; integrates with Prowlarr + downloaders |
+| 17 | Calibre-Web | 8083 | Ebook library UI with format conversion; books path prompted at install |
+| 18 | Audiobookshelf | 13378 | Audiobook & podcast server with iOS/Android apps |
 
 ### Private Cloud
 | # | Service | Port | Notes |
 |---|---------|------|-------|
-| 16 | Nextcloud | 8087 | Self-hosted file storage; DB credentials required |
-| 17 | oCIS | 9200 | ownCloud Infinite Scale; URL required |
-| 18 | Immich | 2283 | Self-hosted photo & video backup; DB credentials required |
-| 19 | Seafile | 8090 | Self-hosted file sync & share; DB and admin credentials required |
-| 20 | Vaultwarden | 8222 | Bitwarden-compatible password manager |
+| 19 | Nextcloud | 8087 | Self-hosted file storage; DB credentials required |
+| 20 | oCIS | 9200 | ownCloud Infinite Scale; URL required |
+| 21 | Immich | 2283 | Self-hosted photo & video backup; DB credentials required |
+| 22 | Seafile | 8090 | Self-hosted file sync & share; DB and admin credentials required |
+| 23 | Vaultwarden | 8222 | Bitwarden-compatible password manager |
 
 ### Backup
 | # | Service | Notes |
 |---|---------|-------|
-| 20 | Backup | Backrest web UI (port 9898) + restic CLI + container hook scripts |
+| 24 | Backup | Backrest web UI (port 9898) + restic CLI + container hook scripts |
 
 ---
 
@@ -112,7 +115,7 @@ Backrest (web UI) → pre hook → restic backup → post hook
 | Group | Containers |
 |-------|-----------|
 | cloudservices | Immich, Seafile, Nextcloud, oCIS, Vaultwarden, Backrest |
-| mediaserver | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Gluetun, Tdarr, Uptime Kuma, Plex, Seerr |
+| mediaserver | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Gluetun, Tdarr, Uptime Kuma, Plex, Seerr, Readarr, Calibre-Web, Audiobookshelf |
 | infrastructure | Portainer, WUD, Netdata, Speedtest (Cloudflared is skipped — stopping it kills the tunnel) |
 
 Schedules, retention policies, source paths, and repos are all configured in the Backrest web UI after install.
@@ -219,6 +222,15 @@ After saving both files, restart the container:
 ```bash
 docker restart seafile
 ```
+
+### Readarr
+Book and audiobook automation in the same vein as Sonarr and Radarr. Integrates directly with Prowlarr for indexer management and routes downloads through NZBGet or qBittorrent. Uses the `develop` branch (Readarr's stable release channel). Add indexers in Prowlarr — they will automatically sync to Readarr. For audiobooks, [MyAnonamouse](https://www.myanonamouse.net/) and AudioBookBay provide the best coverage.
+
+### Calibre-Web
+Web UI for browsing and reading a Calibre library. The books path is prompted at install (defaults to `$MEDIAPATH/books`) and mounted at `/books` inside the container. The `universal-calibre` mod is included, which adds the Calibre binary for on-the-fly e-book format conversion (e.g. EPUB → MOBI). On first launch, point Calibre-Web at `/books` for the library path. If no Calibre database exists yet, create one with the Calibre desktop app or let Calibre-Web initialise a blank one.
+
+### Audiobookshelf
+Self-hosted audiobook and podcast server with dedicated iOS and Android apps. The books path is mounted at `/audiobooks`. Config and metadata are stored under `${DOCKERPATH}/mediaserver/audiobookshelf/`. Add your audiobook library in the web UI pointing to `/audiobooks`, then configure podcast feeds as needed.
 
 ### Saved Config
 Paths and domain name are saved to `~/.privatecloud` after each run. Type `c` in the service menu to clear it and start fresh.
