@@ -77,7 +77,7 @@ chmod +x install.sh
 |---|---------|------|-------|
 | 14 | Plex | 32400 | Media server; claim token from plex.tv/claim |
 | 15 | Seerr | 5055 | Media request manager (replaces deprecated Overseerr) |
-| 16 | Readarr | 8787 | Book & audiobook automation; integrates with Prowlarr + downloaders |
+| 16 | LazyLibrarian | 5299 | Book & audiobook automation; integrates with NZBGet, qBittorrent, and most indexers |
 | 17 | Calibre-Web | 8083 | Ebook library UI with format conversion; books path prompted at install |
 | 18 | Audiobookshelf | 13378 | Audiobook & podcast server with iOS/Android apps |
 
@@ -115,7 +115,7 @@ Backrest (web UI) → pre hook → restic backup → post hook
 | Group | Containers |
 |-------|-----------|
 | cloudservices | Immich, Seafile, Nextcloud, oCIS, Vaultwarden, Backrest |
-| mediaserver | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Gluetun, Tdarr, Uptime Kuma, Plex, Seerr, Readarr, Calibre-Web, Audiobookshelf |
+| mediaserver | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Gluetun, Tdarr, Uptime Kuma, Plex, Seerr, LazyLibrarian, Calibre-Web, Audiobookshelf |
 | infrastructure | Portainer, WUD, Netdata, Speedtest (Cloudflared is skipped — stopping it kills the tunnel) |
 
 Schedules, retention policies, source paths, and repos are all configured in the Backrest web UI after install.
@@ -223,8 +223,8 @@ After saving both files, restart the container:
 docker restart seafile
 ```
 
-### Readarr
-Book and audiobook automation in the same vein as Sonarr and Radarr. Integrates directly with Prowlarr for indexer management and routes downloads through NZBGet or qBittorrent. Uses the `develop` branch (Readarr's stable release channel). Add indexers in Prowlarr — they will automatically sync to Readarr. For audiobooks, [MyAnonamouse](https://www.myanonamouse.net/) and AudioBookBay provide the best coverage.
+### LazyLibrarian
+Book and audiobook automation. Integrates directly with NZBGet and qBittorrent for downloads, and supports most Usenet and torrent indexers. The `universal-calibre` and `lazylibrarian-ffmpeg` mods are included for e-book conversion and audiobook processing. Configure download clients and indexers in the web UI after first launch. For audiobooks, MyAnonamouse and AudioBookBay provide the best coverage.
 
 ### Calibre-Web
 Web UI for browsing and reading a Calibre library. The books path is prompted at install (defaults to `$MEDIAPATH/books`) and mounted at `/books` inside the container. The `universal-calibre` mod is included, which adds the Calibre binary for on-the-fly e-book format conversion (e.g. EPUB → MOBI). On first launch, point Calibre-Web at `/books` for the library path. If no Calibre database exists yet, create one with the Calibre desktop app or let Calibre-Web initialise a blank one.

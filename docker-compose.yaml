@@ -365,20 +365,22 @@ services:
     labels:
       - wud.watch=true
 
-  readarr:
-    container_name: readarr
-    profiles: [readarr]
-    image: lscr.io/linuxserver/readarr:latest
+  lazylibrarian:
+    container_name: lazylibrarian
+    profiles: [lazylibrarian]
+    image: lscr.io/linuxserver/lazylibrarian:latest
     ports:
-      - 8787:8787
+      - 5299:5299
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
+      - DOCKER_MODS=linuxserver/mods:universal-calibre|linuxserver/mods:lazylibrarian-ffmpeg
     volumes:
-      - ${DOCKERPATH}/mediaserver/readarr:/config
+      - ${DOCKERPATH}/mediaserver/lazylibrarian:/config
       - ${MEDIAPATH}:/mnt/Media
       - ${PROCESSPATH}:/mnt/processing
+      - ${BOOKSPATH}:/books
     networks:
       - internal
     restart: always
