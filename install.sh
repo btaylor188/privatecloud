@@ -53,7 +53,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr listenarr plex seerr lazylibrarian calibre-web audiobookshelf nextcloud ocis immich seafile vaultwarden backup)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr listenarr plex seerr lazylibrarian calibre-web bookshelf audiobookshelf nextcloud ocis immich seafile vaultwarden backup)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -72,6 +72,7 @@ LABELS=(
     "Seerr             Media requests"
     "LazyLibrarian     Book & audiobook automation"
     "Calibre-Web       Ebook library & reader"
+    "Bookshelf         Ebook automation (Readarr fork)"
     "Audiobookshelf    Audiobook & podcast server"
     "Nextcloud         File storage"
     "oCIS              ownCloud Infinite Scale"
@@ -85,13 +86,13 @@ SVC_GROUPS=(
     "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
     "Downloaders" "Downloaders"
     "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!"
-    "Media Server" "Media Server" "Media Server" "Media Server" "Media Server"
+    "Media Server" "Media Server" "Media Server" "Media Server" "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
     "Backup"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0)
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0  0)
 
 show_menu() {
     echo ""
@@ -175,17 +176,17 @@ if is_selected duckdns || is_selected speedtest; then
     ask "Domain name" DOMAINNAME
 fi
 
-if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected listenarr || is_selected qbittorrentvpn || is_selected lazylibrarian; then
+if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected listenarr || is_selected qbittorrentvpn || is_selected lazylibrarian || is_selected bookshelf; then
     ask "Path for temp processing" PROCESSPATH "/opt/processing"
     make_dir "$PROCESSPATH"
 fi
 
-if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected listenarr || is_selected plex || is_selected qbittorrentvpn || is_selected lazylibrarian; then
+if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected listenarr || is_selected plex || is_selected qbittorrentvpn || is_selected lazylibrarian || is_selected bookshelf; then
     ask "Path for media" MEDIAPATH "/mnt/media"
     make_dir "$MEDIAPATH"
 fi
 
-if is_selected lazylibrarian || is_selected calibre-web || is_selected audiobookshelf; then
+if is_selected lazylibrarian || is_selected calibre-web || is_selected bookshelf || is_selected audiobookshelf; then
     ask "Path for books & audiobooks" BOOKSPATH "${MEDIAPATH:-/mnt/media}/books"
     make_dir "$BOOKSPATH"
 fi
@@ -901,7 +902,7 @@ services:
     container_name: calibre-web
     image: lscr.io/linuxserver/calibre-web:latest
     ports:
-      - 8083:8083
+      - 8084:8083
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -910,6 +911,34 @@ services:
     volumes:
       - ${DOCKERPATH}/mediaserver/calibre-web:/config
       - ${BOOKSPATH}:/books
+    networks:
+      - internal
+    restart: unless-stopped
+EOF
+fi
+
+if is_selected bookshelf; then
+    make_dir "${DOCKERPATH}/mediaserver/bookshelf"
+    cat > "${DOCKERPATH}/mediaserver/bookshelf/docker-compose.yaml" <<EOF
+networks:
+  internal:
+    external: true
+
+services:
+  bookshelf:
+    container_name: bookshelf
+    image: ghcr.io/pennydreadful/bookshelf:hardcover
+    ports:
+      - 8787:8787
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/bookshelf:/config
+      - ${BOOKSPATH}:/books
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
     networks:
       - internal
     restart: unless-stopped
@@ -1174,7 +1203,7 @@ sudo docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q '^portainer$' || _
 ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckdns uptime-kuma speedtest \
                         nzbget qbittorrentvpn \
                         prowlarr sonarr radarr tdarr listenarr \
-                        plex seerr lazylibrarian calibre-web audiobookshelf \
+                        plex seerr lazylibrarian calibre-web bookshelf audiobookshelf \
                         nextcloud ocis immich seafile vaultwarden)"
 # Backup includes the backrest Docker service
 is_selected backup && ALL_ARGS="$ALL_ARGS --profile backrest"
@@ -1279,7 +1308,8 @@ is_selected listenarr   && print_url "Listenarr"      "http://${LOCAL_IP}:4545"
 is_selected plex         && print_url "Plex"           "http://${LOCAL_IP}:32400/web"
 is_selected seerr        && print_url "Seerr"           "http://${LOCAL_IP}:5055"
 is_selected lazylibrarian && print_url "LazyLibrarian"  "http://${LOCAL_IP}:5299"
-is_selected calibre-web  && print_url "Calibre-Web"     "http://${LOCAL_IP}:8083"
+is_selected calibre-web  && print_url "Calibre-Web"     "http://${LOCAL_IP}:8084"
+is_selected bookshelf    && print_url "Bookshelf"        "http://${LOCAL_IP}:8787"
 is_selected audiobookshelf && print_url "Audiobookshelf" "http://${LOCAL_IP}:13378"
 is_selected nextcloud    && print_url "Nextcloud"      "http://${LOCAL_IP}:8087"
 is_selected ocis         && print_url "oCIS"           "${OCIS_URL}"
