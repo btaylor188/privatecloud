@@ -53,7 +53,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr lazylibrarian calibre-web audiobookshelf nextcloud ocis immich seafile vaultwarden backup)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr listenarr plex seerr lazylibrarian calibre-web audiobookshelf nextcloud ocis immich seafile vaultwarden backup)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -67,6 +67,7 @@ LABELS=(
     "Sonarr            TV show automation"
     "Radarr            Movie automation"
     "Tdarr             Media transcoding"
+    "Listenarr         Audiobook automation"
     "Plex              Media server"
     "Seerr             Media requests"
     "LazyLibrarian     Book & audiobook automation"
@@ -83,14 +84,14 @@ LABELS=(
 SVC_GROUPS=(
     "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
     "Downloaders" "Downloaders"
-    "*ARR!" "*ARR!" "*ARR!" "*ARR!"
+    "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!"
     "Media Server" "Media Server" "Media Server" "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
     "Backup"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0  0 0 0 0 0  0)
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0)
 
 show_menu() {
     echo ""
@@ -174,12 +175,12 @@ if is_selected duckdns || is_selected speedtest; then
     ask "Domain name" DOMAINNAME
 fi
 
-if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected qbittorrentvpn || is_selected lazylibrarian; then
+if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected listenarr || is_selected qbittorrentvpn || is_selected lazylibrarian; then
     ask "Path for temp processing" PROCESSPATH "/opt/processing"
     make_dir "$PROCESSPATH"
 fi
 
-if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected plex || is_selected qbittorrentvpn || is_selected lazylibrarian; then
+if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected listenarr || is_selected plex || is_selected qbittorrentvpn || is_selected lazylibrarian; then
     ask "Path for media" MEDIAPATH "/mnt/media"
     make_dir "$MEDIAPATH"
 fi
@@ -767,6 +768,34 @@ services:
 EOF
 fi
 
+if is_selected listenarr; then
+    make_dir "${DOCKERPATH}/mediaserver/listenarr"
+    cat > "${DOCKERPATH}/mediaserver/listenarr/docker-compose.yaml" <<EOF
+networks:
+  internal:
+    external: true
+
+services:
+  listenarr:
+    container_name: listenarr
+    image: ghcr.io/listenarrs/listenarr:latest
+    ports:
+      - 4545:4545
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=022
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/listenarr:/app/config
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
+    networks:
+      - internal
+    restart: unless-stopped
+EOF
+fi
+
 if is_selected plex; then
     make_dir "${DOCKERPATH}/mediaserver/plex"
     cat > "${DOCKERPATH}/mediaserver/plex/docker-compose.yaml" <<EOF
@@ -1144,7 +1173,7 @@ sudo docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q '^portainer$' || _
 
 ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckdns uptime-kuma speedtest \
                         nzbget qbittorrentvpn \
-                        prowlarr sonarr radarr tdarr \
+                        prowlarr sonarr radarr tdarr listenarr \
                         plex seerr lazylibrarian calibre-web audiobookshelf \
                         nextcloud ocis immich seafile vaultwarden)"
 # Backup includes the backrest Docker service
@@ -1246,6 +1275,7 @@ is_selected prowlarr     && print_url "Prowlarr"       "http://${LOCAL_IP}:9696"
 is_selected sonarr       && print_url "Sonarr"         "http://${LOCAL_IP}:8989"
 is_selected radarr       && print_url "Radarr"         "http://${LOCAL_IP}:7878"
 is_selected tdarr        && print_url "Tdarr"          "http://${LOCAL_IP}:8265"
+is_selected listenarr   && print_url "Listenarr"      "http://${LOCAL_IP}:4545"
 is_selected plex         && print_url "Plex"           "http://${LOCAL_IP}:32400/web"
 is_selected seerr        && print_url "Seerr"           "http://${LOCAL_IP}:5055"
 is_selected lazylibrarian && print_url "LazyLibrarian"  "http://${LOCAL_IP}:5299"

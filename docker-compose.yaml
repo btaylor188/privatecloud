@@ -315,6 +315,27 @@ services:
     labels:
       - wud.watch=true
 
+  listenarr:
+    container_name: listenarr
+    profiles: [listenarr]
+    image: ghcr.io/listenarrs/listenarr:latest
+    ports:
+      - 4545:4545
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=022
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/listenarr:/app/config
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+
   # ── Media Server ──────────────────────────────────────────────────
 
   pms-docker:
