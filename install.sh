@@ -382,6 +382,29 @@ EOF
     sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/radarr/config.xml"
 fi
 
+if is_selected bookshelf && [[ ! -f "${DOCKERPATH}/mediaserver/bookshelf/config.xml" ]]; then
+    make_dir "${DOCKERPATH}/mediaserver/bookshelf"
+    BOOKSHELF_API_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 32)
+    sudo tee "${DOCKERPATH}/mediaserver/bookshelf/config.xml" > /dev/null <<EOF
+<Config>
+  <BindAddress>*</BindAddress>
+  <Port>8787</Port>
+  <SslPort>8788</SslPort>
+  <EnableSsl>False</EnableSsl>
+  <LaunchBrowser>True</LaunchBrowser>
+  <ApiKey>${BOOKSHELF_API_KEY}</ApiKey>
+  <AuthenticationMethod>External</AuthenticationMethod>
+  <Branch>develop</Branch>
+  <LogLevel>info</LogLevel>
+  <UrlBase></UrlBase>
+  <UpdateMechanism>Docker</UpdateMechanism>
+  <AnalyticsEnabled>True</AnalyticsEnabled>
+  <InstanceName>Bookshelf</InstanceName>
+</Config>
+EOF
+    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/bookshelf/config.xml"
+fi
+
 if is_selected prowlarr && [[ ! -f "${DOCKERPATH}/mediaserver/prowlarr/config.xml" ]]; then
     make_dir "${DOCKERPATH}/mediaserver/prowlarr"
     PROWLARR_API_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 32)
