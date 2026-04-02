@@ -413,7 +413,7 @@ services:
     profiles: [calibre-web]
     image: lscr.io/linuxserver/calibre-web:latest
     ports:
-      - 8083:8083
+      - 8084:8083
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -422,6 +422,27 @@ services:
     volumes:
       - ${DOCKERPATH}/mediaserver/calibre-web:/config
       - ${BOOKSPATH}:/books
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+
+  bookshelf:
+    container_name: bookshelf
+    profiles: [bookshelf]
+    image: ghcr.io/pennydreadful/bookshelf:hardcover
+    ports:
+      - 8787:8787
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/bookshelf:/config
+      - ${BOOKSPATH}:/books
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:/mnt/processing
     networks:
       - internal
     restart: unless-stopped
