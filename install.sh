@@ -53,7 +53,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr listenarr plex seerr bookshelf audiobookshelf nextcloud ocis immich seafile vaultwarden backup)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr listenarr bookshelf plex seerr audiobookshelf immich seafile vaultwarden backup)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -68,12 +68,10 @@ LABELS=(
     "Radarr            Movie automation"
     "Tdarr             Media transcoding"
     "Listenarr         Audiobook automation"
+    "Bookshelf         Ebook automation (Readarr fork)"
     "Plex              Media server"
     "Seerr             Media requests"
-    "Bookshelf         Ebook automation (Readarr fork)"
     "Audiobookshelf    Audiobook & podcast server"
-    "Nextcloud         File storage"
-    "oCIS              ownCloud Infinite Scale"
     "Immich            Photo & video backup"
     "Seafile           File sync & share"
     "Vaultwarden       Password manager"
@@ -83,14 +81,14 @@ LABELS=(
 SVC_GROUPS=(
     "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
     "Downloaders" "Downloaders"
-    "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!"
-    "Media Server" "Media Server" "Media Server" "Media Server" "Media Server" "Media Server" "Media Server"
-    "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud" "Private Cloud"
+    "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!"
+    "Media Server" "Media Server" "Media Server"
+    "Private Cloud" "Private Cloud" "Private Cloud"
     "Backup"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0 0  0 0 0 0 0 0 0  0 0 0 0 0  0)
+SELECTED=(0 0 0 0 0  0 0  0 0 0 0 0 0  0 0 0  0 0 0  0)
 
 show_menu() {
     echo ""
@@ -236,22 +234,6 @@ if [[ -z "$CF_TUNNEL_TOKEN" ]]; then
     echo
 fi
 
-if is_selected nextcloud; then
-    echo "Nextcloud DB root password:"
-    read -rs NCDBROOT
-    echo
-    echo "Nextcloud DB user password:"
-    read -rs NCDBUSER
-    echo
-fi
-
-if is_selected ocis; then
-    echo "oCIS URL (e.g. https://files.yourdomain.com or https://localhost:9200):"
-    read -r OCIS_URL
-    make_dir "${DOCKERPATH}/cloudservices/ocis/config"
-    make_dir "${DOCKERPATH}/cloudservices/ocis/data"
-fi
-
 if is_selected immich; then
     ask "Path for Immich photo library" IMMICH_UPLOAD_LOCATION "${DOCKERPATH}/cloudservices/immich/upload"
     make_dir "${IMMICH_UPLOAD_LOCATION}"
@@ -302,9 +284,6 @@ CF_TUNNEL_TOKEN=${CF_TUNNEL_TOKEN:-}
 GLUETUN_VPN_TYPE=${GLUETUN_VPN_TYPE:-wireguard}
 OPENVPN_USER=${OPENVPN_USER:-}
 OPENVPN_PASSWORD=${OPENVPN_PASSWORD:-}
-OCIS_URL=${OCIS_URL:-}
-NCDBROOT=${NCDBROOT:-}
-NCDBUSER=${NCDBUSER:-}
 IMMICH_UPLOAD_LOCATION=${IMMICH_UPLOAD_LOCATION:-/opt/docker/cloudservices/immich/upload}
 IMMICH_DB_PASSWORD=${IMMICH_DB_PASSWORD:-}
 SEAFILE_HOSTNAME=${SEAFILE_HOSTNAME:-}
@@ -936,84 +915,6 @@ services:
 EOF
 fi
 
-if is_selected nextcloud; then
-    make_dir "${DOCKERPATH}/cloudservices/nextcloud"
-    cat > "${DOCKERPATH}/cloudservices/nextcloud/docker-compose.yaml" <<EOF
-networks:
-  internal:
-    external: true
-
-services:
-  nextcloud:
-    image: nextcloud
-    container_name: nextcloud
-    restart: always
-    ports:
-      - 8087:80
-    depends_on:
-      - nextcloud-db
-    volumes:
-      - ${DOCKERPATH}/cloudservices/nextcloud/html:/var/www/html
-      - ${DOCKERPATH}/cloudservices/nextcloud/data:/var/www/html/data
-    environment:
-      - MYSQL_PASSWORD=${NCDBUSER}
-      - MYSQL_DATABASE=nextcloud
-      - MYSQL_USER=nextcloud
-      - MYSQL_HOST=nextcloud-db
-    networks:
-      - internal
-
-  nextcloud-db:
-    image: mariadb:10.6
-    container_name: nextcloud-db
-    restart: always
-    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
-    volumes:
-      - ${DOCKERPATH}/cloudservices/nextcloud/db:/var/lib/mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=${NCDBROOT}
-      - MYSQL_PASSWORD=${NCDBUSER}
-      - MYSQL_DATABASE=nextcloud
-      - MYSQL_USER=nextcloud
-    networks:
-      - internal
-EOF
-fi
-
-if is_selected ocis; then
-    make_dir "${DOCKERPATH}/cloudservices/ocis"
-    cat > "${DOCKERPATH}/cloudservices/ocis/docker-compose.yaml" <<EOF
-networks:
-  internal:
-    external: true
-
-services:
-  ocis:
-    image: owncloud/ocis:latest
-    container_name: ocis
-    restart: always
-    ports:
-      - 9200:9200
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        ocis init --insecure true || true
-        ocis server
-    environment:
-      - OCIS_URL=${OCIS_URL}
-      - OCIS_INSECURE=true
-      - OCIS_LOG_LEVEL=info
-    volumes:
-      - ${DOCKERPATH}/cloudservices/ocis/config:/etc/ocis
-      - ${DOCKERPATH}/cloudservices/ocis/data:/var/lib/ocis
-    networks:
-      - internal
-    logging:
-      driver: local
-EOF
-fi
-
 if is_selected immich; then
     make_dir "${DOCKERPATH}/cloudservices/immich"
     cat > "${DOCKERPATH}/cloudservices/immich/docker-compose.yaml" <<EOF
@@ -1166,8 +1067,8 @@ sudo docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q '^portainer$' || _
 ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckdns uptime-kuma speedtest \
                         nzbget qbittorrentvpn \
                         prowlarr sonarr radarr tdarr listenarr \
-                        plex seerr bookshelf audiobookshelf \
-                        nextcloud ocis immich seafile vaultwarden)"
+                        plex seerr audiobookshelf bookshelf \
+                        immich seafile vaultwarden)"
 # Backup includes the backrest Docker service
 is_selected backup && ALL_ARGS="$ALL_ARGS --profile backrest"
 
@@ -1184,7 +1085,6 @@ if is_selected backup; then
     sudo tee "${DOCKERPATH}/backup/backup.conf" > /dev/null <<EOF
 DOCKERPATH="${DOCKERPATH}"
 SEAFILE_DB_PASSWORD='${SEAFILE_DB_ROOT_PASSWORD:-}'
-NEXTCLOUD_DB_PASSWORD='${NCDBROOT:-}'
 EOF
     sudo chmod 600 "${DOCKERPATH}/backup/backup.conf"
 
@@ -1272,8 +1172,6 @@ is_selected plex         && print_url "Plex"           "http://${LOCAL_IP}:32400
 is_selected seerr        && print_url "Seerr"           "http://${LOCAL_IP}:5055"
 is_selected bookshelf    && print_url "Bookshelf"        "http://${LOCAL_IP}:8787"
 is_selected audiobookshelf && print_url "Audiobookshelf" "http://${LOCAL_IP}:13378"
-is_selected nextcloud    && print_url "Nextcloud"      "http://${LOCAL_IP}:8087"
-is_selected ocis         && print_url "oCIS"           "${OCIS_URL}"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
 is_selected vaultwarden  && print_url "Vaultwarden"    "http://${LOCAL_IP}:8222"
