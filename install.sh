@@ -1184,7 +1184,7 @@ is_selected bookshelf    && print_url "Bookshelf"        "http://${LOCAL_IP}:878
 is_selected audiobookshelf && print_url "Audiobookshelf" "http://${LOCAL_IP}:13378"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
-is_selected vaultwarden  && print_url "Vaultwarden"    "http://${LOCAL_IP}:8222"
+is_selected vaultwarden  && print_url "Vaultwarden"    "${VAULTWARDEN_DOMAIN}"
 is_selected duckdns      && print_url "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
 print_url "Cloudflared"    "(no UI — tunnel active)"
 
