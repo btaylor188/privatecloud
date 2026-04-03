@@ -395,6 +395,7 @@ if is_selected bookshelf && [[ ! -f "${DOCKERPATH}/mediaserver/bookshelf/config.
   <LaunchBrowser>True</LaunchBrowser>
   <ApiKey>${BOOKSHELF_API_KEY}</ApiKey>
   <AuthenticationMethod>External</AuthenticationMethod>
+  <AuthenticationRequired>Disabled</AuthenticationRequired>
   <Branch>develop</Branch>
   <LogLevel>info</LogLevel>
   <UrlBase></UrlBase>
