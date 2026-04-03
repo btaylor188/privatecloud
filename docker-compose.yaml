@@ -706,6 +706,8 @@ services:
       - ${DOCKERPATH}/cloudservices/vaultwarden:/data
     environment:
       - WEBSOCKET_ENABLED=true
+      - DOMAIN=${VAULTWARDEN_DOMAIN}
+      - SIGNUPS_ALLOWED=false
     networks:
       - internal
     restart: unless-stopped
