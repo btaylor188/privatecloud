@@ -61,7 +61,7 @@ LABELS=(
     "DuckDNS           Dynamic DNS"
     "Uptime Kuma       Uptime monitoring"
     "Speedtest         Network speed test"
-    "Backup            Backrest UI + restic + container hooks (port 9898)"
+    "Backrest          Restic Backup UI"
     "NZBGet            Usenet downloader"
     "qBittorrent+VPN   Torrent client"
     "Prowlarr          Indexer manager"
