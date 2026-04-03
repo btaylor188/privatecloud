@@ -53,7 +53,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest nzbget qbittorrentvpn prowlarr sonarr radarr tdarr listenarr bookshelf plex seerr audiobookshelf immich seafile vaultwarden backup)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest backup nzbget qbittorrentvpn prowlarr sonarr radarr tdarr listenarr bookshelf plex seerr audiobookshelf immich seafile vaultwarden)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -61,6 +61,7 @@ LABELS=(
     "DuckDNS           Dynamic DNS"
     "Uptime Kuma       Uptime monitoring"
     "Speedtest         Network speed test"
+    "Backup            Backrest UI + restic + container hooks (port 9898)"
     "NZBGet            Usenet downloader"
     "qBittorrent+VPN   Torrent client"
     "Prowlarr          Indexer manager"
@@ -75,20 +76,18 @@ LABELS=(
     "Immich            Photo & video backup"
     "Seafile           File sync & share"
     "Vaultwarden       Password manager"
-    "Backup            Backrest UI + restic + container hooks (port 9898)"
 )
 
 SVC_GROUPS=(
-    "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
+    "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
     "Downloaders" "Downloaders"
     "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!"
     "Media Server" "Media Server" "Media Server"
     "Private Cloud" "Private Cloud" "Private Cloud"
-    "Backup"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0  0 0  0 0 0 0 0 0  0 0 0  0 0 0  0)
+SELECTED=(0 0 0 0 0 0  0 0  0 0 0 0 0 0  0 0 0  0 0 0)
 
 show_menu() {
     echo ""
@@ -1072,6 +1071,7 @@ ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckd
 # Backup includes the backrest Docker service
 is_selected backup && ALL_ARGS="$ALL_ARGS --profile backrest"
 
+
 [[ -n "$ALL_ARGS" ]] && sudo docker compose -f "$SCRIPT_DIR/docker-compose.yaml" $ALL_ARGS up -d
 
 # ─────────────────────────────────────────────
@@ -1155,6 +1155,8 @@ is_selected wud          && print_url "WUD"            "http://${LOCAL_IP}:3000"
 is_selected netdata      && print_url "Netdata"        "http://${LOCAL_IP}:19999"
 is_selected uptime-kuma  && print_url "Uptime Kuma"    "http://${LOCAL_IP}:3001"
 is_selected speedtest    && print_url "Speedtest"      "http://${LOCAL_IP}:8223"
+is_selected backup       && print_url "Backrest"       "http://${LOCAL_IP}:9898"
+is_selected backup       && print_url "Backup hooks"   "${DOCKERPATH}/backup/"
 is_selected nzbget       && print_url "NZBGet"         "http://${LOCAL_IP}:6789  (user: nzbget / pass: tegbzn6789)"
 if is_selected qbittorrentvpn; then
     if [[ "${GLUETUN_VPN_TYPE}" == "wireguard" ]]; then
@@ -1176,8 +1178,6 @@ is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
 is_selected vaultwarden  && print_url "Vaultwarden"    "http://${LOCAL_IP}:8222"
 is_selected duckdns      && print_url "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
-is_selected backup       && print_url "Backrest"       "http://${LOCAL_IP}:9898"
-is_selected backup       && print_url "Backup hooks"   "${DOCKERPATH}/backup/"
 print_url "Cloudflared"    "(no UI — tunnel active)"
 
 echo "└──────────────────────────────────────────────────────────────┘"
