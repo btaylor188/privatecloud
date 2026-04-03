@@ -408,6 +408,26 @@ services:
     labels:
       - wud.watch=true
 
+  calibre-server:
+    container_name: calibre-server
+    profiles: [calibre-server]
+    image: lscr.io/linuxserver/calibre:latest
+    ports:
+      - 8085:8080
+      - 8081:8081
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/calibre-server:/config
+      - ${BOOKSPATH}:/books
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+
   calibre-web:
     container_name: calibre-web
     profiles: [calibre-web]
