@@ -933,7 +933,7 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-      - DISABLE_SSL=true
+      - SELKIES_ENABLE_HTTPS=false
     volumes:
       - ${DOCKERPATH}/mediaserver/calibre-server:/config
       - ${BOOKSPATH}:/books
