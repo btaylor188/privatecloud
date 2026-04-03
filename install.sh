@@ -243,6 +243,11 @@ if is_selected immich; then
     echo
 fi
 
+if is_selected vaultwarden; then
+    echo "Vaultwarden public URL (e.g. https://vault.yourdomain.com):"
+    read -r VAULTWARDEN_DOMAIN
+fi
+
 if is_selected seafile; then
     echo "Seafile server hostname (e.g. files.yourdomain.com or your server IP):"
     read -r SEAFILE_HOSTNAME
@@ -285,6 +290,7 @@ OPENVPN_USER=${OPENVPN_USER:-}
 OPENVPN_PASSWORD=${OPENVPN_PASSWORD:-}
 IMMICH_UPLOAD_LOCATION=${IMMICH_UPLOAD_LOCATION:-/opt/docker/cloudservices/immich/upload}
 IMMICH_DB_PASSWORD=${IMMICH_DB_PASSWORD:-}
+VAULTWARDEN_DOMAIN=${VAULTWARDEN_DOMAIN:-}
 SEAFILE_HOSTNAME=${SEAFILE_HOSTNAME:-}
 SEAFILE_STORAGE_PATH=${SEAFILE_STORAGE_PATH:-${DOCKERPATH}/cloudservices/seafile/storage}
 SEAFILE_DB_ROOT_PASSWORD=${SEAFILE_DB_ROOT_PASSWORD:-}
@@ -1050,6 +1056,8 @@ services:
       - ${DOCKERPATH}/cloudservices/vaultwarden:/data
     environment:
       - WEBSOCKET_ENABLED=true
+      - DOMAIN=${VAULTWARDEN_DOMAIN}
+      - SIGNUPS_ALLOWED=false
     networks:
       - internal
     restart: unless-stopped
