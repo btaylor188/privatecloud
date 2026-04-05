@@ -28,17 +28,10 @@ if is_running seafile-db; then
         > "${DUMP_DIR}/seafile_db_$(date +%Y%m%d_%H%M%S).sql"
 fi
 
-if is_running nextcloud-db; then
-    echo "Dumping Nextcloud database"
-    docker exec nextcloud-db mysqldump --all-databases -uroot -p"${NEXTCLOUD_DB_PASSWORD}" \
-        > "${DUMP_DIR}/nextcloud_db_$(date +%Y%m%d_%H%M%S).sql"
-fi
-
 echo "=== pre-cloudservices: stopping containers ==="
 
 for c in immich_server immich_machine_learning immich_redis immich_postgres \
           seafile seafile-memcached seafile-db \
-          nextcloud nextcloud-db \
           ocis vaultwarden; do
     is_running "$c" && echo "Stopping $c" && docker stop "$c"
 done
