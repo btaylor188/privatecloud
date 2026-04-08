@@ -50,50 +50,44 @@ chmod +x install.sh
 ### Infrastructure
 | # | Service | Port | Notes |
 |---|---------|------|-------|
+| — | Portainer | 9000 | **Always installed.** Docker management UI |
 | — | Cloudflared | — | **Always installed.** Cloudflare Tunnel; requires connection token |
-| 1 | Portainer | 9000 | Docker management UI |
-| 2 | WUD | 3000 | Container update notifications |
-| 3 | Netdata | 19999 | System monitoring |
-| 4 | DuckDNS | — | Dynamic DNS; requires token |
-| 5 | Uptime Kuma | 3001 | Uptime monitoring |
-| 6 | Speedtest | 8223 | Self-hosted network speed test |
+| 1 | WUD | 3000 | Container update notifications |
+| 2 | Netdata | 19999 | System monitoring |
+| 3 | DuckDNS | — | Dynamic DNS; requires token |
+| 4 | Uptime Kuma | 3001 | Uptime monitoring |
+| 5 | Speedtest | 8223 | Self-hosted network speed test |
+| 6 | Backrest | 9898 | Restic backup UI + hook scripts |
 
 ### Downloaders
 | # | Service | Port | Notes |
 |---|---------|------|-------|
-| 8 | NZBGet | 6789 | Usenet downloader. Default login: `nzbget` / `tegbzn6789` |
-| 9 | qBittorrent+VPN | 8080 | Torrent client via Gluetun; **any WireGuard/OpenVPN provider** — see note below |
+| 7 | NZBGet | 6789 | Usenet downloader. Default login: `nzbget` / `tegbzn6789` |
+| 8 | qBittorrent+VPN | 8080 | Torrent client via Gluetun; **any WireGuard/OpenVPN provider** — see note below |
 
 ### *ARR!
 | # | Service | Port | Notes |
 |---|---------|------|-------|
-| 10 | Prowlarr | 9696 | Indexer manager |
-| 11 | Sonarr | 8989 | TV show automation |
-| 12 | Radarr | 7878 | Movie automation |
-| 13 | Tdarr | 8265 | Media transcoding |
+| 9 | Prowlarr | 9696 | Indexer manager |
+| 10 | Sonarr | 8989 | TV show automation |
+| 11 | Radarr | 7878 | Movie automation |
+| 12 | Tdarr | 8265 | Media transcoding |
+| 13 | Listenarr | 4545 | Audiobook automation |
+| 14 | Bookshelf | 8787 | Ebook automation (Readarr fork) |
 
 ### Media Server
 | # | Service | Port | Notes |
 |---|---------|------|-------|
-| 14 | Plex | 32400 | Media server; claim token from plex.tv/claim |
-| 15 | Seerr | 5055 | Media request manager (replaces deprecated Overseerr) |
-| 16 | LazyLibrarian | 5299 | Book & audiobook automation; integrates with NZBGet, qBittorrent, and most indexers |
-| 17 | Calibre-Web | 8083 | Ebook library UI with format conversion; books path prompted at install |
-| 18 | Audiobookshelf | 13378 | Audiobook & podcast server with iOS/Android apps |
+| 15 | Plex | 32400 | Media server; claim token from plex.tv/claim |
+| 16 | Seerr | 5055 | Media request manager (replaces deprecated Overseerr) |
+| 17 | Audiobookshelf | 13378 | Audiobook & podcast server with iOS/Android apps |
 
 ### Private Cloud
 | # | Service | Port | Notes |
 |---|---------|------|-------|
-| 19 | Nextcloud | 8087 | Self-hosted file storage; DB credentials required |
-| 20 | oCIS | 9200 | ownCloud Infinite Scale; URL required |
-| 21 | Immich | 2283 | Self-hosted photo & video backup; DB credentials required |
-| 22 | Seafile | 8090 | Self-hosted file sync & share; DB and admin credentials required |
-| 23 | Vaultwarden | 8222 | Bitwarden-compatible password manager |
-
-### Backup
-| # | Service | Notes |
-|---|---------|-------|
-| 24 | Backup | Backrest web UI (port 9898) + restic CLI + container hook scripts |
+| 18 | Immich | 2283 | Self-hosted photo & video backup; DB credentials required |
+| 19 | Seafile | 8090 | Self-hosted file sync & share; DB and admin credentials required |
+| 20 | Vaultwarden | 8222 | Bitwarden-compatible password manager |
 
 ---
 
@@ -114,8 +108,8 @@ Backrest (web UI) → pre hook → restic backup → post hook
 
 | Group | Containers |
 |-------|-----------|
-| cloudservices | Immich, Seafile, Nextcloud, oCIS, Vaultwarden, Backrest |
-| mediaserver | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Gluetun, Tdarr, Uptime Kuma, Plex, Seerr, LazyLibrarian, Calibre-Web, Audiobookshelf |
+| cloudservices | Immich, Seafile, Vaultwarden |
+| mediaserver | Sonarr, Radarr, Prowlarr, NZBGet, qBittorrent, Gluetun, Tdarr, Uptime Kuma, Plex, Seerr |
 | infrastructure | Portainer, WUD, Netdata, Speedtest (Cloudflared is skipped — stopping it kills the tunnel) |
 
 Schedules, retention policies, source paths, and repos are all configured in the Backrest web UI after install.
@@ -135,7 +129,7 @@ Installed to `${DOCKERPATH}/backup/` and mounted into the Backrest container at 
 
 DB dumps are written to `${DOCKERPATH}/cloudservices/backup/dumps/` — they are automatically included when Backrest snapshots `${DOCKERPATH}/cloudservices`.
 
-`backup.conf` (mode 600) holds only the DB passwords needed by `pre-cloud.sh`.
+`backup.conf` (mode 600) holds only the DB passwords needed by `pre-cloudservices.sh`.
 
 ### Backrest setup (post-install)
 
@@ -177,7 +171,7 @@ docker exec -i seafile-db mysql -uroot -p < /tmp/restore/.../cloudservices/backu
 
 ## Default Selections
 
-All services start unchecked — select only what you need. Cloudflared is always installed and does not appear in the menu.
+All services start unchecked — select only what you need. Cloudflared and Portainer are always installed and do not appear in the menu.
 
 ---
 
@@ -192,6 +186,12 @@ Uses [Gluetun](https://github.com/qdm12/gluetun) as a VPN sidecar — works with
 
 ### Seerr
 Unified successor to Overseerr and Jellyseerr (merged February 2026). Config is fully compatible — existing Overseerr data migrates automatically on first start.
+
+### Listenarr
+Audiobook automation. Integrates with NZBGet and qBittorrent for downloads and supports most Usenet and torrent indexers. Configure download clients and indexers in the web UI after first launch. For best coverage, MyAnonamouse and AudioBookBay are recommended indexers.
+
+### Bookshelf
+Ebook automation based on a Readarr fork. The books path is prompted at install (defaults to `$BOOKSPATH`) and mounted at `/books` inside the container. Configure download clients and indexers in the web UI after first launch.
 
 ### Immich
 Self-hosted Google Photos alternative. Deploys four containers: `immich-server`, `immich-machine-learning`, `immich-postgres` (pgvecto-rs), and `immich-redis`. The photo library path is prompted during install and can be any local or mounted path.
@@ -223,12 +223,6 @@ After saving both files, restart the container:
 docker restart seafile
 ```
 
-### LazyLibrarian
-Book and audiobook automation. Integrates directly with NZBGet and qBittorrent for downloads, and supports most Usenet and torrent indexers. The `universal-calibre` and `lazylibrarian-ffmpeg` mods are included for e-book conversion and audiobook processing. Configure download clients and indexers in the web UI after first launch. For audiobooks, MyAnonamouse and AudioBookBay provide the best coverage.
-
-### Calibre-Web
-Web UI for browsing and reading a Calibre library. The books path is prompted at install (defaults to `$MEDIAPATH/books`) and mounted at `/books` inside the container. The `universal-calibre` mod is included, which adds the Calibre binary for on-the-fly e-book format conversion (e.g. EPUB → MOBI). On first launch, point Calibre-Web at `/books` for the library path. If no Calibre database exists yet, create one with the Calibre desktop app or let Calibre-Web initialise a blank one.
-
 ### Audiobookshelf
 Self-hosted audiobook and podcast server with dedicated iOS and Android apps. The books path is mounted at `/audiobooks`. Config and metadata are stored under `${DOCKERPATH}/mediaserver/audiobookshelf/`. Add your audiobook library in the web UI pointing to `/audiobooks`, then configure podcast feeds as needed.
 
@@ -251,5 +245,6 @@ Two Docker bridge networks are created automatically:
 privatecloud/
 ├── install.sh               # Main installer
 ├── docker.sh                # Docker engine installer
-└── docker-compose.yaml      # All services (profile-gated)
+├── docker-compose.yaml      # All services (profile-gated)
+└── backup/                  # Pre/post backup hook scripts
 ```
