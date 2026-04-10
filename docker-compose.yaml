@@ -512,35 +512,6 @@ services:
       - wud.watch=true
       - wud.trigger.local=true
 
-  # ── Private Cloud ─────────────────────────────────────────────────
-
-  ocis:
-    image: owncloud/ocis:latest
-    container_name: ocis
-    profiles: [ocis]
-    restart: always
-    ports:
-      - 9200:9200
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        ocis init --insecure true || true
-        ocis server
-    environment:
-      - OCIS_URL=${OCIS_URL}
-      - OCIS_INSECURE=true
-      - OCIS_LOG_LEVEL=info
-    volumes:
-      - ${DOCKERPATH}/cloudservices/ocis/config:/etc/ocis
-      - ${DOCKERPATH}/cloudservices/ocis/data:/var/lib/ocis
-    networks:
-      - internal
-    logging:
-      driver: local
-    labels:
-      - wud.watch=true
-      - wud.trigger.local=true
 
   immich-server:
     container_name: immich_server
