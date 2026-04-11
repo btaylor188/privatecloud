@@ -5,6 +5,12 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ─────────────────────────────────────────────
+#  Terminal colors
+# ─────────────────────────────────────────────
+BOLD=$'\033[1m'; DIM=$'\033[2m'; GREEN=$'\033[0;32m'; CYAN=$'\033[0;36m'
+YELLOW=$'\033[0;33m'; RED=$'\033[0;31m'; RESET=$'\033[0m'
+
+# ─────────────────────────────────────────────
 #  Saved config (paths and domain name)
 # ─────────────────────────────────────────────
 CONFIG_FILE="${HOME}/.privatecloud"
@@ -99,12 +105,17 @@ show_menu() {
         local group="${SVC_GROUPS[$i]}"
         if [[ "$group" != "$last_group" ]]; then
             printf "│                                                              │\n"
-            printf "│  ── %-55s  │\n" "$group"
+            printf "│  ${CYAN}${BOLD}── %-55s${RESET}  │\n" "$group"
             last_group="$group"
         fi
-        local mark="[ ]"
-        [[ "${SELECTED[$i]}" == "1" ]] && mark="[x]"
-        printf "│  %2d) %s  %-50s │\n" "$((i+1))" "$mark" "${LABELS[$i]}"
+        local mark
+        if [[ "${SELECTED[$i]}" == "1" ]]; then
+            mark="${GREEN}[x]${RESET}"
+            printf "│  %2d) %s  %-50s │\n" "$((i+1))" "$mark" "${LABELS[$i]}"
+        else
+            mark="${DIM}[ ]${RESET}"
+            printf "${DIM}│  %2d)${RESET} %s  ${DIM}%-50s │${RESET}\n" "$((i+1))" "$mark" "${LABELS[$i]}"
+        fi
     done
     echo "│                                                              │"
     echo "└──────────────────────────────────────────────────────────────┘"
@@ -127,7 +138,7 @@ while true; do
                     idx=$((num - 1))
                     [[ "${SELECTED[$idx]}" == "1" ]] && SELECTED[$idx]=0 || SELECTED[$idx]=1
                 else
-                    echo "  Invalid selection: $num (valid range: 1-${#SERVICES[@]})"
+                    printf "  ${RED}Invalid selection: %s (valid range: 1-%d)${RESET}\n" "$num" "${#SERVICES[@]}"
                 fi
             done
             ;;
@@ -160,7 +171,9 @@ PUID=$(id -u)
 PGID=$(id -g)
 
 echo ""
-echo "── Required Settings ──"
+echo "┌──────────────────────────────────────────────────────────────┐"
+echo "│                     Required Settings                        │"
+echo "└──────────────────────────────────────────────────────────────┘"
 
 ask "Path for Docker data" DOCKERPATH "/opt/docker"
 make_dir "$DOCKERPATH"
@@ -267,7 +280,9 @@ fi
 
 if is_selected backup; then
     echo ""
-    echo "── Backup Settings ──"
+    echo "┌──────────────────────────────────────────────────────────────┐"
+    echo "│                       Backup Settings                        │"
+    echo "└──────────────────────────────────────────────────────────────┘"
     echo "  Hook scripts will be installed to ${DOCKERPATH}/backup/"
     echo "  Configure repos, schedules, retention, and paths in Backrest after install."
     save_config
@@ -1148,14 +1163,12 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 
 echo ""
 echo "┌──────────────────────────────────────────────────────────────┐"
-echo "│                  Installation Complete!                      │"
+printf "│                  ${GREEN}${BOLD}Installation Complete!${RESET}                      │\n"
 echo "│                  Installed Services                          │"
 echo "├──────────────────────────────────────────────────────────────┤"
 
 print_url() {
-    local label="$1"
-    local url="$2"
-    printf "│  %-20s %s\n" "$label" "$url"
+    printf "│  %-22s ${CYAN}%-37s${RESET}│\n" "$1" "$2"
 }
 
 print_url "Portainer"      "http://${LOCAL_IP}:9000"
@@ -1165,12 +1178,16 @@ is_selected uptime-kuma  && print_url "Uptime Kuma"    "http://${LOCAL_IP}:3001"
 is_selected speedtest    && print_url "Speedtest"      "http://${LOCAL_IP}:8223"
 is_selected backup       && print_url "Backrest"       "http://${LOCAL_IP}:9898"
 is_selected backup       && print_url "Backup hooks"   "${DOCKERPATH}/backup/"
-is_selected nzbget       && print_url "NZBGet"         "http://${LOCAL_IP}:6789  (user: nzbget / pass: tegbzn6789)"
+if is_selected nzbget; then
+    print_url "NZBGet" "http://${LOCAL_IP}:6789"
+    printf "│  ${DIM}%-60s${RESET}│\n" "    user: nzbget  /  pass: tegbzn6789"
+fi
 if is_selected qbittorrentvpn; then
+    print_url "qBittorrent+VPN" "http://${LOCAL_IP}:8080"
     if [[ "${GLUETUN_VPN_TYPE}" == "wireguard" ]]; then
-        print_url "qBittorrent+VPN" "http://${LOCAL_IP}:8080  (place config at ${DOCKERPATH}/mediaserver/gluetun/wireguard/wg0.conf)"
+        printf "│  ${DIM}%-60s${RESET}│\n" "    config: ${DOCKERPATH}/mediaserver/gluetun/wireguard/wg0.conf"
     else
-        print_url "qBittorrent+VPN" "http://${LOCAL_IP}:8080  (place config at ${DOCKERPATH}/mediaserver/gluetun/custom.conf)"
+        printf "│  ${DIM}%-60s${RESET}│\n" "    config: ${DOCKERPATH}/mediaserver/gluetun/custom.conf"
     fi
 fi
 is_selected prowlarr     && print_url "Prowlarr"       "http://${LOCAL_IP}:9696"
@@ -1184,7 +1201,7 @@ is_selected bookshelf    && print_url "Bookshelf"        "http://${LOCAL_IP}:878
 is_selected audiobookshelf && print_url "Audiobookshelf" "http://${LOCAL_IP}:13378"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
-is_selected vaultwarden  && print_url "Vaultwarden"    "${VAULTWARDEN_DOMAIN}"
+is_selected vaultwarden  && print_url "Vaultwarden"    "${VAULTWARDEN_DOMAIN:-http://${LOCAL_IP}:8222}"
 is_selected duckdns      && print_url "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
 print_url "Cloudflared"    "(no UI — tunnel active)"
 
