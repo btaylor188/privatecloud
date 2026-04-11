@@ -109,7 +109,7 @@ services:
       - internal
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${DOCKERPATH}/mediaserver/uptime-kuma:/app/data
+      - ${DOCKERPATH}/infrastructure/uptime-kuma:/app/data
     labels:
       - wud.watch=true
       - wud.trigger.local=true
@@ -150,7 +150,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime
       - ${DOCKERPATH}/mediaserver/nzbget:/config
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
       - ${MEDIAPATH}:/mnt/Media
       - /tmp:/tmp
     networks:
@@ -200,7 +200,7 @@ services:
     volumes:
       - ${DOCKERPATH}/mediaserver/qbittorrent:/config
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
     restart: unless-stopped
     labels:
       - wud.watch=true
@@ -244,7 +244,7 @@ services:
       - /etc/localtime:/etc/localtime
       - ${DOCKERPATH}/mediaserver/sonarr:/config
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
     networks:
       - internal
     restart: always
@@ -270,7 +270,7 @@ services:
       - /etc/localtime:/etc/localtime
       - ${DOCKERPATH}/mediaserver/radarr:/config
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
     networks:
       - internal
     restart: always
@@ -286,8 +286,8 @@ services:
       - ${DOCKERPATH}/mediaserver/tdarr/server:/app/server
       - ${DOCKERPATH}/mediaserver/tdarr/configs:/app/configs
       - ${DOCKERPATH}/mediaserver/tdarr/logs:/app/logs
-      - ${MEDIAPATH}:/media
-      - ${PROCESSPATH}:/temp
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:${PROCESSPATH}
     environment:
       - serverIP=0.0.0.0
       - serverPort=8266
@@ -312,8 +312,8 @@ services:
     volumes:
       - ${DOCKERPATH}/mediaserver/tdarr/configs:/app/configs
       - ${DOCKERPATH}/mediaserver/tdarr/logs:/app/logs
-      - ${MEDIAPATH}:/media
-      - ${PROCESSPATH}:/temp
+      - ${MEDIAPATH}:/mnt/Media
+      - ${PROCESSPATH}:${PROCESSPATH}
     network_mode: service:tdarr
     environment:
       - nodeID=Node01
@@ -344,7 +344,7 @@ services:
     volumes:
       - ${DOCKERPATH}/mediaserver/listenarr:/app/config
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
     networks:
       - internal
     restart: unless-stopped
@@ -418,7 +418,7 @@ services:
     volumes:
       - ${DOCKERPATH}/mediaserver/lazylibrarian:/config
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
       - ${BOOKSPATH}:/books
     networks:
       - internal
@@ -483,7 +483,7 @@ services:
       - ${DOCKERPATH}/mediaserver/bookshelf:/config
       - ${BOOKSPATH}:/books
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
     networks:
       - internal
     restart: unless-stopped

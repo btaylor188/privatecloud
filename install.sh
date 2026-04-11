@@ -426,6 +426,12 @@ EOF
     sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/prowlarr/config.xml"
 fi
 
+if is_selected tdarr; then
+    make_dir "${DOCKERPATH}/mediaserver/tdarr/server"
+    make_dir "${DOCKERPATH}/mediaserver/tdarr/configs"
+    make_dir "${DOCKERPATH}/mediaserver/tdarr/logs"
+fi
+
 if is_selected qbittorrentvpn && [[ ! -f "${DOCKERPATH}/mediaserver/qbittorrent/qBittorrent/qBittorrent.conf" ]]; then
     make_dir "${DOCKERPATH}/mediaserver/qbittorrent/qBittorrent"
     sudo tee "${DOCKERPATH}/mediaserver/qbittorrent/qBittorrent/qBittorrent.conf" > /dev/null <<EOF
