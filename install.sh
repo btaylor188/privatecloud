@@ -802,7 +802,7 @@ networks:
 services:
   listenarr:
     container_name: listenarr
-    image: ghcr.io/listenarrs/listenarr:latest
+    image: ghcr.io/listenarrs/listenarr:canary
     ports:
       - 4545:4545
     environment:
