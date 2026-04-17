@@ -1131,12 +1131,12 @@ EOF
     echo "Hook scripts installed at ${DOCKERPATH}/backup/"
     echo "In Backrest, set hooks to: ${DOCKERPATH}/backup/pre-<group>.sh and ${DOCKERPATH}/backup/post-<group>.sh"
 
-    make_dir "${DOCKERPATH}/cloudservices/backrest/data"
-    make_dir "${DOCKERPATH}/cloudservices/backrest/config"
-    make_dir "${DOCKERPATH}/cloudservices/backrest/cache"
-    make_dir "${DOCKERPATH}/cloudservices/backrest/tmp"
+    make_dir "${DOCKERPATH}/infrastructure/backrest/data"
+    make_dir "${DOCKERPATH}/infrastructure/backrest/config"
+    make_dir "${DOCKERPATH}/infrastructure/backrest/cache"
+    make_dir "${DOCKERPATH}/infrastructure/backrest/tmp"
 
-    sudo tee "${DOCKERPATH}/cloudservices/backrest/docker-compose.yaml" > /dev/null <<EOF
+    sudo tee "${DOCKERPATH}/infrastructure/backrest/docker-compose.yaml" > /dev/null <<EOF
 networks:
   internal:
     external: true
@@ -1149,10 +1149,10 @@ services:
     ports:
       - 9898:9898
     volumes:
-      - ${DOCKERPATH}/cloudservices/backrest/data:/data
-      - ${DOCKERPATH}/cloudservices/backrest/config:/config
-      - ${DOCKERPATH}/cloudservices/backrest/cache:/cache
-      - ${DOCKERPATH}/cloudservices/backrest/tmp:/tmp
+      - ${DOCKERPATH}/infrastructure/backrest/data:/data
+      - ${DOCKERPATH}/infrastructure/backrest/config:/config
+      - ${DOCKERPATH}/infrastructure/backrest/cache:/cache
+      - ${DOCKERPATH}/infrastructure/backrest/tmp:/tmp
       - ${DOCKERPATH}:${DOCKERPATH}
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro

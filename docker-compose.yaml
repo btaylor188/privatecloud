@@ -589,10 +589,10 @@ services:
     ports:
       - 9898:9898
     volumes:
-      - ${DOCKERPATH}/cloudservices/backrest/data:/data
-      - ${DOCKERPATH}/cloudservices/backrest/config:/config
-      - ${DOCKERPATH}/cloudservices/backrest/cache:/cache
-      - ${DOCKERPATH}/cloudservices/backrest/tmp:/tmp
+      - ${DOCKERPATH}/infrastructure/backrest/data:/data
+      - ${DOCKERPATH}/infrastructure/backrest/config:/config
+      - ${DOCKERPATH}/infrastructure/backrest/cache:/cache
+      - ${DOCKERPATH}/infrastructure/backrest/tmp:/tmp
       - ${DOCKERPATH}:${DOCKERPATH}
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro

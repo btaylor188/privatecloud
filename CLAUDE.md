@@ -81,7 +81,7 @@ Pre/post hook scripts for Backrest (restic UI). Three groups: `cloudservices`, `
 DOCKERPATH/
 ├── infrastructure/   # portainer, wud, netdata, duckdns, uptime-kuma, speedtest, backrest
 ├── mediaserver/      # sonarr, radarr, prowlarr, nzbget, qbittorrent, gluetun, tdarr, plex, seerr, audiobookshelf
-└── cloudservices/    # immich/, seafile/, vaultwarden/, backrest/
+└── cloudservices/    # immich/, seafile/, vaultwarden/
 ```
 
 ## Service Categories and Ports
