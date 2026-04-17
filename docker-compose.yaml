@@ -330,28 +330,6 @@ services:
       - wud.watch=true
       - wud.trigger.local=true
 
-  listenarr:
-    container_name: listenarr
-    profiles: [listenarr]
-    image: ghcr.io/listenarrs/listenarr:canary
-    ports:
-      - 4545:4545
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - UMASK=022
-      - TZ=${TZ}
-    volumes:
-      - ${DOCKERPATH}/mediaserver/listenarr:/app/config
-      - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:${PROCESSPATH}
-    networks:
-      - internal
-    restart: unless-stopped
-    labels:
-      - wud.watch=true
-      - wud.trigger.local=true
-
   # ── Media Server ──────────────────────────────────────────────────
 
   pms-docker:
@@ -404,93 +382,6 @@ services:
       - wud.watch=true
       - wud.trigger.local=true
 
-  lazylibrarian:
-    container_name: lazylibrarian
-    profiles: [lazylibrarian]
-    image: lscr.io/linuxserver/lazylibrarian:latest
-    ports:
-      - 5299:5299
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - DOCKER_MODS=linuxserver/mods:universal-calibre|linuxserver/mods:lazylibrarian-ffmpeg
-    volumes:
-      - ${DOCKERPATH}/mediaserver/lazylibrarian:/config
-      - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:${PROCESSPATH}
-      - ${BOOKSPATH}:/books
-    networks:
-      - internal
-    restart: always
-    labels:
-      - wud.watch=true
-      - wud.trigger.local=true
-
-  calibre-server:
-    container_name: calibre-server
-    profiles: [calibre-server]
-    image: lscr.io/linuxserver/calibre:latest
-    ports:
-      - 8085:8080
-      - 8081:8081
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${DOCKERPATH}/mediaserver/calibre-server:/config
-      - ${BOOKSPATH}:/books
-    networks:
-      - internal
-    restart: unless-stopped
-    labels:
-      - wud.watch=true
-      - wud.trigger.local=true
-
-  calibre-web:
-    container_name: calibre-web
-    profiles: [calibre-web]
-    image: lscr.io/linuxserver/calibre-web:latest
-    ports:
-      - 8084:8083
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - DOCKER_MODS=linuxserver/mods:universal-calibre
-    volumes:
-      - ${DOCKERPATH}/mediaserver/calibre-web:/config
-      - ${BOOKSPATH}:/books
-    networks:
-      - internal
-    restart: unless-stopped
-    labels:
-      - wud.watch=true
-      - wud.trigger.local=true
-
-  bookshelf:
-    container_name: bookshelf
-    profiles: [bookshelf]
-    image: ghcr.io/pennydreadful/bookshelf:hardcover
-    ports:
-      - 8787:8787
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${DOCKERPATH}/mediaserver/bookshelf:/config
-      - ${BOOKSPATH}:/books
-      - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:${PROCESSPATH}
-    networks:
-      - internal
-    restart: unless-stopped
-    labels:
-      - wud.watch=true
-      - wud.trigger.local=true
-
   audiobookshelf:
     container_name: audiobookshelf
     profiles: [audiobookshelf]
@@ -512,6 +403,69 @@ services:
       - wud.watch=true
       - wud.trigger.local=true
 
+  # ── Books ─────────────────────────────────────────────────────────
+
+  grimmory-db:
+    container_name: grimmory-db
+    profiles: [grimmory]
+    image: mariadb:11
+    environment:
+      - MARIADB_DATABASE=grimmory
+      - MARIADB_USER=grimmory
+      - MARIADB_PASSWORD=${GRIMMORY_DB_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=${GRIMMORY_DB_PASSWORD}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/grimmory/db:/var/lib/mysql
+    networks:
+      - internal
+    restart: unless-stopped
+
+  grimmory:
+    container_name: grimmory
+    profiles: [grimmory]
+    image: ghcr.io/grimmory-tools/grimmory:latest
+    ports:
+      - 6069:6069
+    environment:
+      - USER_ID=${PUID}
+      - GROUP_ID=${PGID}
+      - TZ=${TZ}
+      - DATABASE_URL=jdbc:mariadb://grimmory-db:3306/grimmory
+      - DATABASE_USERNAME=grimmory
+      - DATABASE_PASSWORD=${GRIMMORY_DB_PASSWORD}
+      - BOOKLORE_PORT=6069
+    volumes:
+      - ${DOCKERPATH}/mediaserver/grimmory/data:/app/data
+      - ${BOOKSPATH}:/books
+    depends_on:
+      - grimmory-db
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+      - wud.trigger.local=true
+
+  shelfmark:
+    container_name: shelfmark
+    profiles: [shelfmark]
+    image: ghcr.io/calibrain/shelfmark:latest
+    ports:
+      - 8084:8084
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/shelfmark:/config
+      - ${BOOKSPATH}:/books
+    networks:
+      - internal
+    restart: unless-stopped
+    labels:
+      - wud.watch=true
+      - wud.trigger.local=true
 
   immich-server:
     container_name: immich_server

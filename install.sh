@@ -47,6 +47,7 @@ MEDIAPATH="${MEDIAPATH:-}"
 GLUETUN_VPN_TYPE="${GLUETUN_VPN_TYPE:-wireguard}"
 BACKUPPATH="${BACKUPPATH:-}"
 BOOKSPATH="${BOOKSPATH:-}"
+GRIMMORY_DB_PASSWORD="${GRIMMORY_DB_PASSWORD:-}"
 EOF
 }
 
@@ -59,7 +60,7 @@ trap cleanup EXIT
 # ─────────────────────────────────────────────
 #  Service selection menu
 # ─────────────────────────────────────────────
-SERVICES=(wud netdata duckdns uptime-kuma speedtest backup nzbget qbittorrentvpn prowlarr sonarr radarr tdarr listenarr bookshelf plex seerr audiobookshelf immich seafile vaultwarden)
+SERVICES=(wud netdata duckdns uptime-kuma speedtest backup nzbget qbittorrentvpn prowlarr sonarr radarr tdarr plex seerr audiobookshelf grimmory shelfmark immich seafile vaultwarden)
 
 LABELS=(
     "WUD               Container update notifications"
@@ -74,11 +75,11 @@ LABELS=(
     "Sonarr            TV show automation"
     "Radarr            Movie automation"
     "Tdarr             Media transcoding"
-    "Listenarr         Audiobook automation"
-    "Bookshelf         Ebook automation (Readarr fork)"
     "Plex              Media server"
     "Seerr             Media requests"
     "Audiobookshelf    Audiobook & podcast server"
+    "Grimmory          Book library & reader"
+    "Shelfmark         Book & audiobook downloader"
     "Immich            Photo & video backup"
     "Seafile           File sync & share"
     "Vaultwarden       Password manager"
@@ -87,13 +88,14 @@ LABELS=(
 SVC_GROUPS=(
     "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure" "Infrastructure"
     "Downloaders" "Downloaders"
-    "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!" "*ARR!"
-    "Media Server" "Media Server" "Media Server"
+    "*ARR!" "*ARR!" "*ARR!" "*ARR!"
+    "Media Server" "Media Server"
+    "Books" "Books" "Books"
     "Private Cloud" "Private Cloud" "Private Cloud"
 )
 
 # Default: none selected — Cloudflared and Portainer are always required and not listed here
-SELECTED=(0 0 0 0 0 0  0 0  0 0 0 0 0 0  0 0 0  0 0 0)
+SELECTED=(0 0 0 0 0 0  0 0  0 0 0 0  0 0  0 0 0  0 0 0)
 
 show_menu() {
     echo ""
@@ -184,17 +186,17 @@ if is_selected duckdns || is_selected speedtest; then
     ask "Domain name" DOMAINNAME
 fi
 
-if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected listenarr || is_selected qbittorrentvpn || is_selected bookshelf; then
+if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected qbittorrentvpn; then
     ask "Path for temp processing" PROCESSPATH "/opt/processing"
     make_dir "$PROCESSPATH"
 fi
 
-if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected listenarr || is_selected plex || is_selected qbittorrentvpn || is_selected bookshelf; then
+if is_selected nzbget || is_selected sonarr || is_selected radarr || is_selected tdarr || is_selected plex || is_selected qbittorrentvpn; then
     ask "Path for media" MEDIAPATH "/mnt/media"
     make_dir "$MEDIAPATH"
 fi
 
-if is_selected bookshelf || is_selected audiobookshelf; then
+if is_selected audiobookshelf || is_selected grimmory || is_selected shelfmark; then
     ask "Path for books & audiobooks" BOOKSPATH "${MEDIAPATH:-/mnt/media}/books"
     make_dir "$BOOKSPATH"
 fi
@@ -278,6 +280,15 @@ if is_selected seafile; then
     echo
 fi
 
+if is_selected grimmory; then
+    make_dir "${DOCKERPATH}/mediaserver/grimmory/data"
+    make_dir "${DOCKERPATH}/mediaserver/grimmory/db"
+    if [[ -z "${GRIMMORY_DB_PASSWORD:-}" ]]; then
+        GRIMMORY_DB_PASSWORD=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 24)
+        save_config
+    fi
+fi
+
 if is_selected backup; then
     echo ""
     echo "┌──────────────────────────────────────────────────────────────┐"
@@ -312,6 +323,7 @@ SEAFILE_DB_ROOT_PASSWORD=${SEAFILE_DB_ROOT_PASSWORD:-}
 SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL:-}
 SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD:-}
 BOOKSPATH=${BOOKSPATH:-${MEDIAPATH:-/mnt/media}/books}
+GRIMMORY_DB_PASSWORD=${GRIMMORY_DB_PASSWORD:-}
 TZ=${TZ}
 PUID=${PUID}
 PGID=${PGID}
@@ -377,30 +389,6 @@ if is_selected radarr && [[ ! -f "${DOCKERPATH}/mediaserver/radarr/config.xml" ]
 </Config>
 EOF
     sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/radarr/config.xml"
-fi
-
-if is_selected bookshelf && [[ ! -f "${DOCKERPATH}/mediaserver/bookshelf/config.xml" ]]; then
-    make_dir "${DOCKERPATH}/mediaserver/bookshelf"
-    BOOKSHELF_API_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 32)
-    sudo tee "${DOCKERPATH}/mediaserver/bookshelf/config.xml" > /dev/null <<EOF
-<Config>
-  <BindAddress>*</BindAddress>
-  <Port>8787</Port>
-  <SslPort>8788</SslPort>
-  <EnableSsl>False</EnableSsl>
-  <LaunchBrowser>True</LaunchBrowser>
-  <ApiKey>${BOOKSHELF_API_KEY}</ApiKey>
-  <AuthenticationMethod>External</AuthenticationMethod>
-  <AuthenticationRequired>Disabled</AuthenticationRequired>
-  <Branch>develop</Branch>
-  <LogLevel>info</LogLevel>
-  <UrlBase></UrlBase>
-  <UpdateMechanism>Docker</UpdateMechanism>
-  <AnalyticsEnabled>True</AnalyticsEnabled>
-  <InstanceName>Bookshelf</InstanceName>
-</Config>
-EOF
-    sudo chown "${PUID}:${PGID}" "${DOCKERPATH}/mediaserver/bookshelf/config.xml"
 fi
 
 if is_selected prowlarr && [[ ! -f "${DOCKERPATH}/mediaserver/prowlarr/config.xml" ]]; then
@@ -591,7 +579,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime
       - ${DOCKERPATH}/mediaserver/nzbget:/config
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
       - ${MEDIAPATH}:/mnt/Media
       - /tmp:/tmp
     networks:
@@ -645,7 +633,7 @@ services:
     volumes:
       - ${DOCKERPATH}/mediaserver/qbittorrent:/config
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
     restart: unless-stopped
 EOF
 fi
@@ -700,7 +688,7 @@ services:
       - /etc/localtime:/etc/localtime
       - ${DOCKERPATH}/mediaserver/sonarr:/config
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
     networks:
       - internal
     restart: always
@@ -732,7 +720,7 @@ services:
       - /etc/localtime:/etc/localtime
       - ${DOCKERPATH}/mediaserver/radarr:/config
       - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
+      - ${PROCESSPATH}:${PROCESSPATH}
     networks:
       - internal
     restart: always
@@ -755,7 +743,7 @@ services:
       - ${DOCKERPATH}/mediaserver/tdarr/configs:/app/configs
       - ${DOCKERPATH}/mediaserver/tdarr/logs:/app/logs
       - ${MEDIAPATH}:/media
-      - ${PROCESSPATH}:/temp
+      - ${PROCESSPATH}:${PROCESSPATH}
     environment:
       - serverIP=0.0.0.0
       - serverPort=8266
@@ -777,7 +765,7 @@ services:
       - ${DOCKERPATH}/mediaserver/tdarr/configs:/app/configs
       - ${DOCKERPATH}/mediaserver/tdarr/logs:/app/logs
       - ${MEDIAPATH}:/media
-      - ${PROCESSPATH}:/temp
+      - ${PROCESSPATH}:${PROCESSPATH}
     network_mode: service:tdarr
     environment:
       - nodeID=Node01
@@ -789,34 +777,6 @@ services:
     devices:
       - /dev/dri:/dev/dri
     restart: always
-EOF
-fi
-
-if is_selected listenarr; then
-    make_dir "${DOCKERPATH}/mediaserver/listenarr"
-    cat > "${DOCKERPATH}/mediaserver/listenarr/docker-compose.yaml" <<EOF
-networks:
-  internal:
-    external: true
-
-services:
-  listenarr:
-    container_name: listenarr
-    image: ghcr.io/listenarrs/listenarr:canary
-    ports:
-      - 4545:4545
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - UMASK=022
-      - TZ=${TZ}
-    volumes:
-      - ${DOCKERPATH}/mediaserver/listenarr:/app/config
-      - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
-    networks:
-      - internal
-    restart: unless-stopped
 EOF
 fi
 
@@ -885,28 +845,72 @@ EOF
 fi
 
 
-if is_selected bookshelf; then
-    make_dir "${DOCKERPATH}/mediaserver/bookshelf"
-    cat > "${DOCKERPATH}/mediaserver/bookshelf/docker-compose.yaml" <<EOF
+if is_selected grimmory; then
+    cat > "${DOCKERPATH}/mediaserver/grimmory/docker-compose.yaml" <<EOF
 networks:
   internal:
     external: true
 
 services:
-  bookshelf:
-    container_name: bookshelf
-    image: ghcr.io/pennydreadful/bookshelf:hardcover
+  grimmory-db:
+    container_name: grimmory-db
+    image: mariadb:11
+    environment:
+      - MARIADB_DATABASE=grimmory
+      - MARIADB_USER=grimmory
+      - MARIADB_PASSWORD=${GRIMMORY_DB_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=${GRIMMORY_DB_PASSWORD}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKERPATH}/mediaserver/grimmory/db:/var/lib/mysql
+    networks:
+      - internal
+    restart: unless-stopped
+
+  grimmory:
+    container_name: grimmory
+    image: ghcr.io/grimmory-tools/grimmory:latest
     ports:
-      - 8787:8787
+      - 6069:6069
+    environment:
+      - USER_ID=${PUID}
+      - GROUP_ID=${PGID}
+      - TZ=${TZ}
+      - DATABASE_URL=jdbc:mariadb://grimmory-db:3306/grimmory
+      - DATABASE_USERNAME=grimmory
+      - DATABASE_PASSWORD=${GRIMMORY_DB_PASSWORD}
+      - BOOKLORE_PORT=6069
+    volumes:
+      - ${DOCKERPATH}/mediaserver/grimmory/data:/app/data
+      - ${BOOKSPATH}:/books
+    depends_on:
+      - grimmory-db
+    networks:
+      - internal
+    restart: unless-stopped
+EOF
+fi
+
+if is_selected shelfmark; then
+    make_dir "${DOCKERPATH}/mediaserver/shelfmark"
+    cat > "${DOCKERPATH}/mediaserver/shelfmark/docker-compose.yaml" <<EOF
+networks:
+  internal:
+    external: true
+
+services:
+  shelfmark:
+    container_name: shelfmark
+    image: ghcr.io/calibrain/shelfmark:latest
+    ports:
+      - 8084:8084
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${DOCKERPATH}/mediaserver/bookshelf:/config
+      - ${DOCKERPATH}/mediaserver/shelfmark:/config
       - ${BOOKSPATH}:/books
-      - ${MEDIAPATH}:/mnt/Media
-      - ${PROCESSPATH}:/mnt/processing
     networks:
       - internal
     restart: unless-stopped
@@ -1094,8 +1098,9 @@ sudo docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q '^portainer$' || _
 
 ALL_ARGS="--profile cloudflared $_portainer_arg $(profile_args wud netdata duckdns uptime-kuma speedtest \
                         nzbget qbittorrentvpn \
-                        prowlarr sonarr radarr tdarr listenarr \
-                        plex seerr audiobookshelf bookshelf \
+                        prowlarr sonarr radarr tdarr \
+                        plex seerr \
+                        audiobookshelf grimmory shelfmark \
                         immich seafile vaultwarden)"
 # Backup includes the backrest Docker service
 is_selected backup && ALL_ARGS="$ALL_ARGS --profile backrest"
@@ -1200,11 +1205,11 @@ is_selected prowlarr     && print_url "Prowlarr"       "http://${LOCAL_IP}:9696"
 is_selected sonarr       && print_url "Sonarr"         "http://${LOCAL_IP}:8989"
 is_selected radarr       && print_url "Radarr"         "http://${LOCAL_IP}:7878"
 is_selected tdarr        && print_url "Tdarr"          "http://${LOCAL_IP}:8265"
-is_selected listenarr   && print_url "Listenarr"      "http://${LOCAL_IP}:4545"
 is_selected plex         && print_url "Plex"           "http://${LOCAL_IP}:32400/web"
-is_selected seerr        && print_url "Seerr"           "http://${LOCAL_IP}:5055"
-is_selected bookshelf    && print_url "Bookshelf"        "http://${LOCAL_IP}:8787"
+is_selected seerr        && print_url "Seerr"          "http://${LOCAL_IP}:5055"
 is_selected audiobookshelf && print_url "Audiobookshelf" "http://${LOCAL_IP}:13378"
+is_selected grimmory     && print_url "Grimmory"       "http://${LOCAL_IP}:6069"
+is_selected shelfmark    && print_url "Shelfmark"      "http://${LOCAL_IP}:8084"
 is_selected immich       && print_url "Immich"         "http://${LOCAL_IP}:2283"
 is_selected seafile      && print_url "Seafile"        "http://${LOCAL_IP}:8090"
 is_selected vaultwarden  && print_url "Vaultwarden"    "${VAULTWARDEN_DOMAIN:-http://${LOCAL_IP}:8222}"
