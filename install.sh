@@ -1220,47 +1220,32 @@ echo "└───────────────────────�
 echo ""
 
 # ─────────────────────────────────────────────
-#  Save summary to file (plain text, no colors)
+#  Save service URL reference to file
 # ─────────────────────────────────────────────
 SUMMARY_FILE="${DOCKERPATH}/install-summary.txt"
 {
-    echo "Installation Complete — $(date)"
-    echo ""
-    echo "Installed Services"
+    echo "Service URLs — ${LOCAL_IP} — updated $(date)"
     echo "────────────────────────────────────────────"
-    printf "  %-22s %s\n" "Portainer"      "http://${LOCAL_IP}:9000"
-    is_selected wud          && printf "  %-22s %s\n" "WUD"            "http://${LOCAL_IP}:3000"
-    is_selected netdata      && printf "  %-22s %s\n" "Netdata"        "http://${LOCAL_IP}:19999"
-    is_selected uptime-kuma  && printf "  %-22s %s\n" "Uptime Kuma"    "http://${LOCAL_IP}:3001"
-    is_selected speedtest    && printf "  %-22s %s\n" "Speedtest"      "http://${LOCAL_IP}:8223"
-    is_selected backup       && printf "  %-22s %s\n" "Backrest"       "http://${LOCAL_IP}:9898"
-    is_selected backup       && printf "  %-22s %s\n" "Backup hooks"   "${DOCKERPATH}/backup/"
-    if is_selected nzbget; then
-        printf "  %-22s %s\n" "NZBGet" "http://${LOCAL_IP}:6789"
-        printf "    user: nzbget  /  pass: tegbzn6789\n"
-    fi
-    if is_selected qbittorrentvpn; then
-        printf "  %-22s %s\n" "qBittorrent+VPN" "http://${LOCAL_IP}:8080"
-        if [[ "${GLUETUN_VPN_TYPE}" == "wireguard" ]]; then
-            printf "    config: %s\n" "${DOCKERPATH}/mediaserver/gluetun/wireguard/wg0.conf"
-        else
-            printf "    config: %s\n" "${DOCKERPATH}/mediaserver/gluetun/custom.conf"
-        fi
-    fi
-    is_selected prowlarr     && printf "  %-22s %s\n" "Prowlarr"       "http://${LOCAL_IP}:9696"
-    is_selected sonarr       && printf "  %-22s %s\n" "Sonarr"         "http://${LOCAL_IP}:8989"
-    is_selected radarr       && printf "  %-22s %s\n" "Radarr"         "http://${LOCAL_IP}:7878"
-    is_selected tdarr        && printf "  %-22s %s\n" "Tdarr"          "http://${LOCAL_IP}:8265"
-    is_selected plex         && printf "  %-22s %s\n" "Plex"           "http://${LOCAL_IP}:32400/web"
-    is_selected seerr        && printf "  %-22s %s\n" "Seerr"          "http://${LOCAL_IP}:5055"
-    is_selected audiobookshelf && printf "  %-22s %s\n" "Audiobookshelf" "http://${LOCAL_IP}:13378"
-    is_selected grimmory     && printf "  %-22s %s\n" "Grimmory"       "http://${LOCAL_IP}:6069"
-    is_selected shelfmark    && printf "  %-22s %s\n" "Shelfmark"      "http://${LOCAL_IP}:8084"
-    is_selected immich       && printf "  %-22s %s\n" "Immich"         "http://${LOCAL_IP}:2283"
-    is_selected seafile      && printf "  %-22s %s\n" "Seafile"        "http://${LOCAL_IP}:8090"
-    is_selected vaultwarden  && printf "  %-22s %s\n" "Vaultwarden"    "${VAULTWARDEN_DOMAIN:-http://${LOCAL_IP}:8222}"
-    is_selected duckdns      && printf "  %-22s %s\n" "DuckDNS"        "(no UI — managing ${DOMAINNAME}.duckdns.org)"
-    printf "  %-22s %s\n" "Cloudflared"    "(no UI — tunnel active)"
+    printf "  %-22s %s\n" "Portainer"       "http://${LOCAL_IP}:9000"
+    printf "  %-22s %s\n" "WUD"             "http://${LOCAL_IP}:3000"
+    printf "  %-22s %s\n" "Netdata"         "http://${LOCAL_IP}:19999"
+    printf "  %-22s %s\n" "Uptime Kuma"     "http://${LOCAL_IP}:3001"
+    printf "  %-22s %s\n" "Speedtest"       "http://${LOCAL_IP}:8223"
+    printf "  %-22s %s\n" "Backrest"        "http://${LOCAL_IP}:9898"
+    printf "  %-22s %s\n" "NZBGet"          "http://${LOCAL_IP}:6789"
+    printf "  %-22s %s\n" "qBittorrent+VPN" "http://${LOCAL_IP}:8080"
+    printf "  %-22s %s\n" "Prowlarr"        "http://${LOCAL_IP}:9696"
+    printf "  %-22s %s\n" "Sonarr"          "http://${LOCAL_IP}:8989"
+    printf "  %-22s %s\n" "Radarr"          "http://${LOCAL_IP}:7878"
+    printf "  %-22s %s\n" "Tdarr"           "http://${LOCAL_IP}:8265"
+    printf "  %-22s %s\n" "Plex"            "http://${LOCAL_IP}:32400/web"
+    printf "  %-22s %s\n" "Seerr"           "http://${LOCAL_IP}:5055"
+    printf "  %-22s %s\n" "Audiobookshelf"  "http://${LOCAL_IP}:13378"
+    printf "  %-22s %s\n" "Grimmory"        "http://${LOCAL_IP}:6069"
+    printf "  %-22s %s\n" "Shelfmark"       "http://${LOCAL_IP}:8084"
+    printf "  %-22s %s\n" "Immich"          "http://${LOCAL_IP}:2283"
+    printf "  %-22s %s\n" "Seafile"         "http://${LOCAL_IP}:8090"
+    printf "  %-22s %s\n" "Vaultwarden"     "${VAULTWARDEN_DOMAIN:-http://${LOCAL_IP}:8222}"
 } | sudo tee "$SUMMARY_FILE" > /dev/null
-echo "Summary saved to ${SUMMARY_FILE}"
+echo "Service URLs saved to ${SUMMARY_FILE}"
 echo ""
